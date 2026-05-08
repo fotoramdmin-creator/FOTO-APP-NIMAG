@@ -22,6 +22,8 @@ type Props = {
   onBack: () => void;
 };
 
+const APP_URL = "https://fotoapp-rho.vercel.app";
+
 export default function ConfigAccesos({ onBack }: Props) {
   const [usuarios, setUsuarios] = useState<Usuario[]>([]);
   const [loading, setLoading] = useState(false);
@@ -72,7 +74,7 @@ export default function ConfigAccesos({ onBack }: Props) {
       const { error } = await supabase.auth.resetPasswordForEmail(
         usuario.email,
         {
-          redirectTo: "https://57xqc5.csb.app",
+          redirectTo: APP_URL,
         }
       );
 
@@ -102,7 +104,7 @@ export default function ConfigAccesos({ onBack }: Props) {
 
             <button onClick={cargarUsuarios} style={S.refreshBtn}>
               <RefreshCw size={16} />
-              Actualizar
+              {loading ? "Actualizando..." : "Actualizar"}
             </button>
           </div>
 
@@ -139,7 +141,7 @@ export default function ConfigAccesos({ onBack }: Props) {
               >
                 <div style={S.cardTop}>
                   <div>
-                    <div style={S.name}>{u.nombre}</div>
+                    <div style={S.name}>{u.nombre || "Sin nombre"}</div>
                     <div style={S.email}>
                       <Mail size={14} /> {u.email || "Sin email"}
                     </div>
@@ -147,7 +149,10 @@ export default function ConfigAccesos({ onBack }: Props) {
 
                   <button
                     onClick={() => enviarRecuperacion(u)}
-                    style={S.btn}
+                    style={{
+                      ...S.btn,
+                      opacity: sendingId === u.id ? 0.7 : 1,
+                    }}
                     disabled={sendingId === u.id}
                   >
                     <Send size={16} />
@@ -185,6 +190,7 @@ const S: { [key: string]: React.CSSProperties } = {
     display: "flex",
     justifyContent: "space-between",
     marginBottom: 10,
+    gap: 10,
   },
   backBtn: {
     background: "rgba(255,255,255,0.2)",
@@ -193,6 +199,9 @@ const S: { [key: string]: React.CSSProperties } = {
     padding: "6px 12px",
     color: "#fff",
     cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
   },
   refreshBtn: {
     background: "#fff",
@@ -200,6 +209,9 @@ const S: { [key: string]: React.CSSProperties } = {
     borderRadius: 10,
     padding: "6px 12px",
     cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    gap: 6,
   },
   heroBody: {
     display: "flex",
@@ -229,6 +241,8 @@ const S: { [key: string]: React.CSSProperties } = {
     border: "none",
     outline: "none",
     flex: 1,
+    fontSize: 15,
+    background: "transparent",
   },
   list: {
     display: "grid",
@@ -244,6 +258,7 @@ const S: { [key: string]: React.CSSProperties } = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    gap: 12,
   },
   name: {
     fontWeight: 800,
@@ -255,6 +270,7 @@ const S: { [key: string]: React.CSSProperties } = {
     display: "flex",
     alignItems: "center",
     gap: 6,
+    marginTop: 4,
   },
   btn: {
     background: "#556b2f",
@@ -266,5 +282,6 @@ const S: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     gap: 6,
     cursor: "pointer",
+    whiteSpace: "nowrap",
   },
 };
