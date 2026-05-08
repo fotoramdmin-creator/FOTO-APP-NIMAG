@@ -1,0 +1,27 @@
+{
+    "compilerOptions": {
+      "target": "es2016",                    // o "es2020" o "esnext" — es2016 ya es suficiente
+      "lib": [
+        "dom",
+        "dom.iterable",
+        "es2016",                            // ← agrega esto (o "esnext")
+        "esnext"                             // ← recomendado para features modernas
+      ],
+      "allowJs": true,
+      "skipLibCheck": true,
+      "esModuleInterop": true,
+      "allowSyntheticDefaultImports": true,
+      "strict": true,
+      "forceConsistentCasingInFileNames": true,
+      "noFallthroughCasesInSwitch": true,
+      "module": "esnext",
+      "moduleResolution": "node",
+      "resolveJsonModule": true,
+      "isolatedModules": true,
+      "noEmit": true,
+      "jsx": "react-jsx"
+    },
+    "include": [
+      "src"
+    ]
+  }
