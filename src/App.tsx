@@ -10,7 +10,8 @@ function App() {
 
   useEffect(() => {
     // 1. Verificar si hay una sesión activa al abrir la app
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(({ data }) => {
+      const session = data.session;
       setSession(session);
       setLoading(false);
     });
