@@ -6,8 +6,6 @@
   "main": "src/index.tsx",
   "dependencies": {
     "@supabase/supabase-js": "2.99.2",
-    "ajv": "8.17.1",
-    "ajv-keywords": "5.1.0",
     "framer-motion": "12.38.0",
     "jspdf": "2.5.1",
     "loader-utils": "3.2.1",
@@ -15,28 +13,19 @@
     "react": "18.2.0",
     "react-dom": "18.2.0",
     "react-query": "3.39.3",
-    "react-scripts": "5.0.1",
     "styled-components": "6.3.11"
   },
   "devDependencies": {
     "@types/react": "18.2.38",
     "@types/react-dom": "18.2.15",
-    "typescript": "4.4.4"
-  },
-  "overrides": {
-    "ajv": "8.17.1",
-    "ajv-keywords": "5.1.0"
+    "@vitejs/plugin-react": "latest",
+    "typescript": "4.4.4",
+    "vite": "latest"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "GENERATE_SOURCEMAP=false DISABLE_ESLINT_PLUGIN=true CI=false react-scripts build",
-    "test": "react-scripts test --env=jsdom",
-    "eject": "react-scripts eject"
-  },
-  "browserslist": [
-    ">0.2%",
-    "not dead",
-    "not ie <= 11",
-    "not op_mini all"
-  ]
+    "start": "vite --host 0.0.0.0",
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview"
+  }
 }
