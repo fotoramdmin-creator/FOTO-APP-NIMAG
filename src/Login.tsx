@@ -1,13 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Mail,
-  Lock,
-  Loader2,
-  CheckCircle2,
-  AlertCircle,
-} from "lucide-react";
+import { Mail, Lock, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
@@ -19,12 +13,15 @@ const Login = () => {
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 992);
+
     window.addEventListener("resize", handleResize);
+
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setLoading(true);
     setError(null);
 
@@ -35,7 +32,9 @@ const Login = () => {
           password,
         });
 
-      if (authError) throw new Error("Credenciales incorrectas");
+      if (authError) {
+        throw new Error("Credenciales incorrectas");
+      }
 
       const { data: profile } = await supabase
         .from("usuarios")
@@ -90,11 +89,11 @@ const Login = () => {
       {/* PANEL IZQUIERDO */}
       {!isMobile && (
         <div style={styles.splitLeft}>
-          <div style={styles.gradientOverlay} />
+          <div style={styles.overlayDark} />
         </div>
       )}
 
-      {/* PANEL LOGIN */}
+      {/* PANEL DERECHO */}
       <div
         style={{
           ...styles.loginPanel,
@@ -123,20 +122,20 @@ const Login = () => {
           <header
             style={{
               textAlign: isMobile ? "center" : "left",
-              marginBottom: "30px",
+              marginBottom: "35px",
             }}
           >
             <div
               style={{
                 ...styles.logoPlaceholder,
-                margin: isMobile ? "0 auto 15px" : "0 0 20px 0",
+                margin: isMobile ? "0 auto 20px" : "0 0 25px 0",
               }}
             >
               <img
-                src="/CDR.png"
+                src="/LOGO.png"
                 alt="Logo"
                 style={{
-                  width: isMobile ? "240px" : "300px",
+                  width: isMobile ? "150px" : "170px",
                 }}
               />
             </div>
@@ -144,15 +143,13 @@ const Login = () => {
             <h1
               style={{
                 ...styles.titlePrata,
-                fontSize: isMobile ? "26px" : "32px",
+                fontSize: isMobile ? "30px" : "40px",
               }}
             >
               Foto Estudio Ramírez
             </h1>
 
-            <p style={styles.subtitle}>
-              Inicia sesión para continuar
-            </p>
+            <p style={styles.subtitle}>Inicia sesión para continuar</p>
           </header>
 
           <form onSubmit={handleLogin} style={styles.form}>
@@ -225,6 +222,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     minHeight: "100vh",
     width: "100vw",
     backgroundColor: "#f8f6f1",
+    overflow: "hidden",
   },
 
   splitLeft: {
@@ -232,18 +230,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: "relative",
     backgroundImage: "url('/login-bg.png')",
     backgroundSize: "cover",
-    backgroundPosition: "center",
+    backgroundPosition: "center center",
     backgroundRepeat: "no-repeat",
   },
 
-  gradientOverlay: {
+  overlayDark: {
     position: "absolute",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-    background:
-      "linear-gradient(135deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 100%)",
+    inset: 0,
+    background: "linear-gradient(to right, rgba(0,0,0,0.28), rgba(0,0,0,0.12))",
   },
 
   loginPanel: {
@@ -260,24 +254,29 @@ const styles: { [key: string]: React.CSSProperties } = {
 
   logoPlaceholder: {
     display: "flex",
+    justifyContent: "center",
   },
 
   titlePrata: {
     fontFamily: "'Prata', serif",
-    color: "#1a1a1a",
+    color: "#161616",
     fontStyle: "italic",
     margin: "5px 0",
+    lineHeight: 1.1,
+    textAlign: "center",
   },
 
   subtitle: {
-    fontSize: "14px",
-    color: "#888",
+    fontSize: "15px",
+    color: "#7b7b7b",
+    marginTop: "10px",
+    textAlign: "center",
   },
 
   form: {
     display: "flex",
     flexDirection: "column",
-    gap: "15px",
+    gap: "16px",
     width: "100%",
   },
 
@@ -295,27 +294,28 @@ const styles: { [key: string]: React.CSSProperties } = {
 
   input: {
     width: "100%",
-    padding: "16px 16px 16px 45px",
-    borderRadius: "12px",
-    border: "1.5px solid #eee",
+    padding: "18px 18px 18px 48px",
+    borderRadius: "16px",
+    border: "1.5px solid #ececec",
     fontSize: "16px",
     outline: "none",
-    backgroundColor: "#fafafa",
+    backgroundColor: "#ffffff",
     transition: "0.3s",
+    color: "#1a1a1a",
   },
 
   buttonSubmit: {
-    backgroundColor: "#556b2f",
+    background: "linear-gradient(135deg, #556b2f 0%, #6b8440 100%)",
     color: "#fff",
-    padding: "16px",
-    borderRadius: "12px",
+    padding: "18px",
+    borderRadius: "16px",
     border: "none",
     fontSize: "15px",
-    fontWeight: 600,
+    fontWeight: 700,
     letterSpacing: "1px",
     cursor: "pointer",
-    boxShadow: "0 5px 15px rgba(85, 107, 47, 0.2)",
-    marginTop: "10px",
+    boxShadow: "0 10px 25px rgba(85, 107, 47, 0.25)",
+    marginTop: "12px",
   },
 
   errorBox: {
@@ -325,8 +325,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "#c53030",
     fontSize: "13px",
     backgroundColor: "#fff5f5",
-    padding: "10px",
-    borderRadius: "10px",
+    padding: "12px",
+    borderRadius: "12px",
   },
 
   successCard: {
@@ -344,12 +344,13 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 
   buttonLogout: {
-    backgroundColor: "#4B0082",
+    backgroundColor: "#556b2f",
     color: "#fff",
     padding: "12px 24px",
     border: "none",
-    borderRadius: "8px",
+    borderRadius: "10px",
     cursor: "pointer",
+    fontWeight: 600,
   },
 };
 
