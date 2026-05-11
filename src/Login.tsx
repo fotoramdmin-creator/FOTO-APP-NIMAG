@@ -152,9 +152,7 @@ const Login = () => {
               Foto Estudio Ramírez
             </h1>
 
-            <p style={styles.subtitle}>
-              Inicia sesión para continuar
-            </p>
+            <p style={styles.subtitle}>Inicia sesión para continuar</p>
           </header>
 
           <form onSubmit={handleLogin} style={styles.form}>
@@ -235,7 +233,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     minHeight: "100vh",
 
     /* NUEVA IMAGEN */
-    backgroundImage: "url('/antua.png?v=2')",
+    backgroundImage: "url('/antua2.png')",
 
     backgroundSize: "cover",
     backgroundPosition: "center center",
@@ -245,8 +243,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   overlayDark: {
     position: "absolute",
     inset: 0,
-    background:
-      "linear-gradient(to right, rgba(0,0,0,0.10), rgba(0,0,0,0.05))",
+    background: "linear-gradient(to right, rgba(0,0,0,0.10), rgba(0,0,0,0.05))",
     pointerEvents: "none",
   },
 
@@ -322,8 +319,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 
   buttonSubmit: {
-    background:
-      "linear-gradient(135deg, #556b2f 0%, #6b8440 100%)",
+    background: "linear-gradient(135deg, #556b2f 0%, #6b8440 100%)",
     color: "#fff",
     padding: "18px",
     borderRadius: "16px",
