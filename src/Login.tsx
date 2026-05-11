@@ -13,28 +13,20 @@ const Login = () => {
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 992);
-
     window.addEventListener("resize", handleResize);
-
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setLoading(true);
     setError(null);
 
     try {
       const { data: authData, error: authError } =
-        await supabase.auth.signInWithPassword({
-          email,
-          password,
-        });
+        await supabase.auth.signInWithPassword({ email, password });
 
-      if (authError) {
-        throw new Error("Credenciales incorrectas");
-      }
+      if (authError) throw new Error("Credenciales incorrectas");
 
       const { data: profile } = await supabase
         .from("usuarios")
@@ -57,7 +49,7 @@ const Login = () => {
 
   if (userData) {
     return (
-      <div style={styles.container}>
+      <div style={styles.successContainer}>
         <motion.div
           initial={{ scale: 0.8 }}
           animate={{ scale: 1 }}
@@ -70,7 +62,6 @@ const Login = () => {
           />
 
           <h2 style={styles.titlePrata}>¡Bienvenido!</h2>
-
           <p style={styles.sessionText}>{userData.nombre}</p>
 
           <button
@@ -85,57 +76,54 @@ const Login = () => {
   }
 
   return (
-    <div style={styles.container}>
-      {/* PANEL IZQUIERDO */}
+    <div
+      style={{
+        ...styles.container,
+        gridTemplateColumns: isMobile ? "1fr" : "50% 50%",
+      }}
+    >
       {!isMobile && (
         <div style={styles.splitLeft}>
           <div style={styles.overlayDark} />
         </div>
       )}
 
-      {/* PANEL DERECHO */}
       <div
         style={{
           ...styles.loginPanel,
-          width: isMobile ? "100%" : "50%",
-          padding: isMobile ? "20px" : "60px 8%",
+          padding: isMobile ? "22px" : "40px 7%",
         }}
       >
         <motion.div
           initial="hidden"
           animate="visible"
           variants={{
-            visible: {
-              transition: { staggerChildren: 0.1 },
-            },
+            visible: { transition: { staggerChildren: 0.1 } },
           }}
           style={{
             ...styles.formContainer,
-            maxWidth: isMobile ? "420px" : "480px",
+            maxWidth: isMobile ? "420px" : "500px",
             backgroundColor: isMobile ? "#fff" : "transparent",
             boxShadow: isMobile
               ? "0 15px 35px rgba(85, 107, 47, 0.12)"
               : "none",
-            padding: isMobile ? "40px 30px" : "0",
+            padding: isMobile ? "38px 28px" : "0",
           }}
         >
-          <header
-            style={{
-              textAlign: isMobile ? "center" : "left",
-              marginBottom: "28px",
-            }}
-          >
+          <header style={styles.header}>
             <div
               style={{
                 ...styles.logoPlaceholder,
-                margin: isMobile ? "0 auto 20px" : "0 0 25px 0",
+                marginBottom: isMobile ? "22px" : "24px",
               }}
             >
               <img
                 src="/LOGO.png"
                 alt="Logo"
                 style={{
-                  width: isMobile ? "180px" : "240px",
+                  width: isMobile ? "260px" : "340px",
+                  maxWidth: "100%",
+                  display: "block",
                 }}
               />
             </div>
@@ -143,7 +131,7 @@ const Login = () => {
             <h1
               style={{
                 ...styles.titlePrata,
-                fontSize: isMobile ? "34px" : "42px",
+                fontSize: isMobile ? "32px" : "42px",
               }}
             >
               Foto Estudio Ramírez
@@ -218,16 +206,16 @@ const Login = () => {
 
 const styles: { [key: string]: React.CSSProperties } = {
   container: {
-    display: "flex",
+    display: "grid",
     minHeight: "100vh",
-    width: "100vw",
+    width: "100%",
     backgroundColor: "#f8f6f1",
     overflow: "hidden",
   },
 
   splitLeft: {
-    width: "50%",
     position: "relative",
+    minHeight: "100vh",
     backgroundImage: "url('/LOGIN.png')",
     backgroundSize: "cover",
     backgroundPosition: "center center",
@@ -237,15 +225,16 @@ const styles: { [key: string]: React.CSSProperties } = {
   overlayDark: {
     position: "absolute",
     inset: 0,
-    background: "linear-gradient(to right, rgba(0,0,0,0.28), rgba(0,0,0,0.12))",
+    background: "linear-gradient(to right, rgba(0,0,0,0.10), rgba(0,0,0,0.05))",
+    pointerEvents: "none",
   },
 
   loginPanel: {
+    minHeight: "100vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f8f6f1",
-    minHeight: "100vh",
   },
 
   formContainer: {
@@ -253,24 +242,30 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderRadius: "28px",
   },
 
+  header: {
+    textAlign: "center",
+    marginBottom: "30px",
+  },
+
   logoPlaceholder: {
     display: "flex",
     justifyContent: "center",
+    alignItems: "center",
   },
 
   titlePrata: {
     fontFamily: "'Prata', serif",
     color: "#161616",
     fontStyle: "italic",
-    margin: "5px 0",
-    lineHeight: 1.1,
+    margin: "0",
+    lineHeight: 1.08,
     textAlign: "center",
   },
 
   subtitle: {
     fontSize: "15px",
     color: "#7b7b7b",
-    marginTop: "10px",
+    marginTop: "12px",
     textAlign: "center",
   },
 
@@ -289,13 +284,13 @@ const styles: { [key: string]: React.CSSProperties } = {
 
   icon: {
     position: "absolute",
-    left: "15px",
+    left: "16px",
     color: "#556b2f",
   },
 
   input: {
     width: "100%",
-    padding: "18px 18px 18px 48px",
+    padding: "18px 18px 18px 50px",
     borderRadius: "16px",
     border: "1.5px solid #ececec",
     fontSize: "16px",
@@ -328,6 +323,15 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: "#fff5f5",
     padding: "12px",
     borderRadius: "12px",
+  },
+
+  successContainer: {
+    minHeight: "100vh",
+    width: "100%",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#f8f6f1",
   },
 
   successCard: {
