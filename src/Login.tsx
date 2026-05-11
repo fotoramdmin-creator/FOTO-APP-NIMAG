@@ -13,20 +13,28 @@ const Login = () => {
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 992);
+
     window.addEventListener("resize", handleResize);
+
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setLoading(true);
     setError(null);
 
     try {
       const { data: authData, error: authError } =
-        await supabase.auth.signInWithPassword({ email, password });
+        await supabase.auth.signInWithPassword({
+          email,
+          password,
+        });
 
-      if (authError) throw new Error("Credenciales incorrectas");
+      if (authError) {
+        throw new Error("Credenciales incorrectas");
+      }
 
       const { data: profile } = await supabase
         .from("usuarios")
@@ -62,6 +70,7 @@ const Login = () => {
           />
 
           <h2 style={styles.titlePrata}>¡Bienvenido!</h2>
+
           <p style={styles.sessionText}>{userData.nombre}</p>
 
           <button
@@ -82,12 +91,14 @@ const Login = () => {
         gridTemplateColumns: isMobile ? "1fr" : "50% 50%",
       }}
     >
+      {/* PANEL IZQUIERDO */}
       {!isMobile && (
         <div style={styles.splitLeft}>
           <div style={styles.overlayDark} />
         </div>
       )}
 
+      {/* PANEL DERECHO */}
       <div
         style={{
           ...styles.loginPanel,
@@ -98,7 +109,11 @@ const Login = () => {
           initial="hidden"
           animate="visible"
           variants={{
-            visible: { transition: { staggerChildren: 0.1 } },
+            visible: {
+              transition: {
+                staggerChildren: 0.1,
+              },
+            },
           }}
           style={{
             ...styles.formContainer,
@@ -118,7 +133,7 @@ const Login = () => {
               }}
             >
               <img
-                src="/LOGO.png"
+                src="/LOGO.png?v=2"
                 alt="Logo"
                 style={{
                   width: isMobile ? "260px" : "340px",
@@ -137,7 +152,9 @@ const Login = () => {
               Foto Estudio Ramírez
             </h1>
 
-            <p style={styles.subtitle}>Inicia sesión para continuar</p>
+            <p style={styles.subtitle}>
+              Inicia sesión para continuar
+            </p>
           </header>
 
           <form onSubmit={handleLogin} style={styles.form}>
@@ -216,7 +233,10 @@ const styles: { [key: string]: React.CSSProperties } = {
   splitLeft: {
     position: "relative",
     minHeight: "100vh",
-    backgroundImage: "url('/antua.png')",
+
+    /* NUEVA IMAGEN */
+    backgroundImage: "url('/antua.png?v=2')",
+
     backgroundSize: "cover",
     backgroundPosition: "center center",
     backgroundRepeat: "no-repeat",
@@ -225,7 +245,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   overlayDark: {
     position: "absolute",
     inset: 0,
-    background: "linear-gradient(to right, rgba(0,0,0,0.10), rgba(0,0,0,0.05))",
+    background:
+      "linear-gradient(to right, rgba(0,0,0,0.10), rgba(0,0,0,0.05))",
     pointerEvents: "none",
   },
 
@@ -301,7 +322,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 
   buttonSubmit: {
-    background: "linear-gradient(135deg, #556b2f 0%, #6b8440 100%)",
+    background:
+      "linear-gradient(135deg, #556b2f 0%, #6b8440 100%)",
     color: "#fff",
     padding: "18px",
     borderRadius: "16px",
