@@ -230,7 +230,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: "relative",
     backgroundImage: "url('/LOGIN.png')",
     backgroundSize: "cover",
-    backgroundPosition: "center center",
+    backgroundPosition: "left center",
     backgroundRepeat: "no-repeat",
   },
 
