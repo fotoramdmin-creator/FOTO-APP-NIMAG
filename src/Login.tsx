@@ -122,7 +122,7 @@ const Login = () => {
           <header
             style={{
               textAlign: isMobile ? "center" : "left",
-              marginBottom: "35px",
+              marginBottom: "28px",
             }}
           >
             <div
@@ -135,7 +135,7 @@ const Login = () => {
                 src="/LOGO.png"
                 alt="Logo"
                 style={{
-                  width: isMobile ? "150px" : "170px",
+                  width: isMobile ? "190px" : "220px",
                 }}
               />
             </div>
@@ -143,7 +143,7 @@ const Login = () => {
             <h1
               style={{
                 ...styles.titlePrata,
-                fontSize: isMobile ? "30px" : "40px",
+                fontSize: isMobile ? "34px" : "42px",
               }}
             >
               Foto Estudio Ramírez
@@ -245,6 +245,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f8f6f1",
+    minHeight: "100vh",
   },
 
   formContainer: {
