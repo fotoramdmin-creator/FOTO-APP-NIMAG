@@ -7,7 +7,6 @@ import {
   Loader2,
   CheckCircle2,
   AlertCircle,
-  Camera,
 } from "lucide-react";
 
 const Login = () => {
@@ -28,12 +27,14 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+
     try {
       const { data: authData, error: authError } =
         await supabase.auth.signInWithPassword({
           email,
           password,
         });
+
       if (authError) throw new Error("Credenciales incorrectas");
 
       const { data: profile } = await supabase
@@ -64,12 +65,15 @@ const Login = () => {
           style={styles.successCard}
         >
           <CheckCircle2
-            size={isMobile ? 60 : 80}
+            size={70}
             color="#556b2f"
             style={{ margin: "0 auto 20px" }}
           />
+
           <h2 style={styles.titlePrata}>¡Bienvenido!</h2>
+
           <p style={styles.sessionText}>{userData.nombre}</p>
+
           <button
             onClick={() => window.location.reload()}
             style={styles.buttonLogout}
@@ -83,25 +87,14 @@ const Login = () => {
 
   return (
     <div style={styles.container}>
-      {/* PANEL IZQUIERDO SOLO EN PC */}
+      {/* PANEL IZQUIERDO */}
       {!isMobile && (
         <div style={styles.splitLeft}>
-          <div style={styles.leftContent}>
-            <Camera
-              size={40}
-              color="#fffcf0"
-              style={{ marginBottom: "20px" }}
-            />
-            <h2 style={styles.leftTitle}>Capturando la Esencia</h2>
-            <p style={styles.leftSubtitle}>
-              Desde 1990, transformando momentos en legado.
-            </p>
-          </div>
           <div style={styles.gradientOverlay} />
         </div>
       )}
 
-      {/* PANEL DE FORMULARIO */}
+      {/* PANEL LOGIN */}
       <div
         style={{
           ...styles.loginPanel,
@@ -112,7 +105,11 @@ const Login = () => {
         <motion.div
           initial="hidden"
           animate="visible"
-          variants={{ visible: { transition: { staggerChildren: 0.1 } } }}
+          variants={{
+            visible: {
+              transition: { staggerChildren: 0.1 },
+            },
+          }}
           style={{
             ...styles.formContainer,
             maxWidth: isMobile ? "420px" : "480px",
@@ -138,9 +135,12 @@ const Login = () => {
               <img
                 src="/CDR.png"
                 alt="Logo"
-                style={{ width: isMobile ? "240px" : "300px" }}
+                style={{
+                  width: isMobile ? "240px" : "300px",
+                }}
               />
             </div>
+
             <h1
               style={{
                 ...styles.titlePrata,
@@ -149,12 +149,16 @@ const Login = () => {
             >
               Foto Estudio Ramírez
             </h1>
-            <p style={styles.subtitle}>Inicia sesión para continuar</p>
+
+            <p style={styles.subtitle}>
+              Inicia sesión para continuar
+            </p>
           </header>
 
           <form onSubmit={handleLogin} style={styles.form}>
             <motion.div variants={itemVariants} style={styles.inputGroup}>
               <Mail size={18} style={styles.icon} />
+
               <input
                 type="email"
                 placeholder="Correo electrónico"
@@ -167,6 +171,7 @@ const Login = () => {
 
             <motion.div variants={itemVariants} style={styles.inputGroup}>
               <Lock size={18} style={styles.icon} />
+
               <input
                 type="password"
                 placeholder="Contraseña"
@@ -184,14 +189,18 @@ const Login = () => {
                   animate={{ opacity: 1 }}
                   style={styles.errorBox}
                 >
-                  <AlertCircle size={16} /> <span>{error}</span>
+                  <AlertCircle size={16} />
+                  <span>{error}</span>
                 </motion.div>
               )}
             </AnimatePresence>
 
             <motion.button
               variants={itemVariants}
-              whileHover={{ scale: 1.02, backgroundColor: "#637d37" }}
+              whileHover={{
+                scale: 1.02,
+                backgroundColor: "#637d37",
+              }}
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
@@ -211,19 +220,22 @@ const Login = () => {
 };
 
 const styles: { [key: string]: React.CSSProperties } = {
-  container: { display: "flex", minHeight: "100vh", width: "100vw" },
+  container: {
+    display: "flex",
+    minHeight: "100vh",
+    width: "100vw",
+    backgroundColor: "#f8f6f1",
+  },
+
   splitLeft: {
     width: "50%",
-    backgroundColor: "#1a1a1a",
     position: "relative",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundImage:
-      "url('https://images.unsplash.com/photo-1542038784456-1ea8e935640e?q=80&w=1470')",
+    backgroundImage: "url('/login-bg.png')",
     backgroundSize: "cover",
     backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
   },
+
   gradientOverlay: {
     position: "absolute",
     top: 0,
@@ -231,45 +243,56 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: "100%",
     height: "100%",
     background:
-      "linear-gradient(135deg, rgba(184, 134, 11, 0.4) 0%, rgba(85, 107, 47, 0.6) 100%)",
-    zIndex: 1,
+      "linear-gradient(135deg, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.35) 100%)",
   },
-  leftContent: {
-    position: "relative",
-    zIndex: 2,
-    textAlign: "center",
-    color: "#fffcf0",
-    padding: "40px",
-  },
-  leftTitle: {
-    fontFamily: "'Prata', serif",
-    fontSize: "40px",
-    fontStyle: "italic",
-    marginBottom: "10px",
-  },
-  leftSubtitle: { fontSize: "16px", fontWeight: 300, opacity: 0.9 },
+
   loginPanel: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#f8f6f1",
   },
-  formContainer: { width: "100%", borderRadius: "28px" },
-  logoPlaceholder: { display: "flex" },
+
+  formContainer: {
+    width: "100%",
+    borderRadius: "28px",
+  },
+
+  logoPlaceholder: {
+    display: "flex",
+  },
+
   titlePrata: {
     fontFamily: "'Prata', serif",
     color: "#1a1a1a",
     fontStyle: "italic",
     margin: "5px 0",
   },
-  subtitle: { fontSize: "14px", color: "#888" },
+
+  subtitle: {
+    fontSize: "14px",
+    color: "#888",
+  },
+
   form: {
     display: "flex",
     flexDirection: "column",
     gap: "15px",
     width: "100%",
   },
-  inputGroup: { position: "relative", display: "flex", alignItems: "center" },
-  icon: { position: "absolute", left: "15px", color: "#556b2f" },
+
+  inputGroup: {
+    position: "relative",
+    display: "flex",
+    alignItems: "center",
+  },
+
+  icon: {
+    position: "absolute",
+    left: "15px",
+    color: "#556b2f",
+  },
+
   input: {
     width: "100%",
     padding: "16px 16px 16px 45px",
@@ -280,6 +303,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: "#fafafa",
     transition: "0.3s",
   },
+
   buttonSubmit: {
     backgroundColor: "#556b2f",
     color: "#fff",
@@ -293,6 +317,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     boxShadow: "0 5px 15px rgba(85, 107, 47, 0.2)",
     marginTop: "10px",
   },
+
   errorBox: {
     display: "flex",
     alignItems: "center",
@@ -303,6 +328,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     padding: "10px",
     borderRadius: "10px",
   },
+
   successCard: {
     backgroundColor: "#fff",
     padding: "50px",
@@ -310,7 +336,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     textAlign: "center",
     boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
   },
-  sessionText: { fontSize: "20px", color: "#333", marginBottom: "20px" },
+
+  sessionText: {
+    fontSize: "20px",
+    color: "#333",
+    marginBottom: "20px",
+  },
+
   buttonLogout: {
     backgroundColor: "#4B0082",
     color: "#fff",
