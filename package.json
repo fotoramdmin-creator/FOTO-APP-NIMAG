@@ -4,24 +4,27 @@
   "private": true,
   "description": "Foto Estudio Ramirez app",
   "main": "src/index.tsx",
+
   "dependencies": {
     "@supabase/supabase-js": "2.99.2",
-    "framer-motion": "12.38.0",
+    "framer-motion": "^12.38.0",
     "jspdf": "2.5.1",
     "loader-utils": "3.2.1",
-    "lucide-react": "0.576.0",
-    "react": "18.2.0",
-    "react-dom": "18.2.0",
+    "lucide-react": "^0.576.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
     "react-query": "3.39.3",
     "styled-components": "6.3.11"
   },
+
   "devDependencies": {
-    "@types/react": "18.2.38",
-    "@types/react-dom": "18.2.15",
-    "@vitejs/plugin-react": "latest",
-    "typescript": "4.4.4",
-    "vite": "latest"
+    "@types/react": "^18.2.38",
+    "@types/react-dom": "^18.2.15",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.4.5",
+    "vite": "^5.4.10"
   },
+
   "scripts": {
     "start": "vite --host 0.0.0.0",
     "dev": "vite --host 0.0.0.0",
