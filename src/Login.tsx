@@ -135,7 +135,7 @@ const Login = () => {
                 src="/LOGO.png"
                 alt="Logo"
                 style={{
-                  width: isMobile ? "200px" : "260px",
+                  width: isMobile ? "180px" : "240px",
                 }}
               />
             </div>
