@@ -228,7 +228,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   splitLeft: {
     width: "50%",
     position: "relative",
-    backgroundImage: "url('/login-bg.png')",
+    backgroundImage: "url('/LOGIN.png')",
     backgroundSize: "cover",
     backgroundPosition: "center center",
     backgroundRepeat: "no-repeat",
