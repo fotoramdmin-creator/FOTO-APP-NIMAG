@@ -15,7 +15,6 @@ const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
-
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userData, setUserData] = useState<any>(null);
@@ -23,15 +22,12 @@ const Login = () => {
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 992);
-
     window.addEventListener("resize", handleResize);
-
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setLoading(true);
     setError(null);
 
@@ -42,9 +38,7 @@ const Login = () => {
           password,
         });
 
-      if (authError) {
-        throw new Error("Credenciales incorrectas");
-      }
+      if (authError) throw new Error("Credenciales incorrectas");
 
       const { data: profile } = await supabase
         .from("usuarios")
@@ -80,7 +74,6 @@ const Login = () => {
           />
 
           <h2 style={styles.titlePrata}>¡Bienvenido!</h2>
-
           <p style={styles.sessionText}>{userData.nombre}</p>
 
           <button
@@ -197,19 +190,16 @@ const Login = () => {
                 placeholder="Contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={{
-                  ...styles.input,
-                  paddingRight: "52px",
-                }}
+                style={styles.passwordInput}
                 required
               />
 
               <button
                 type="button"
-                onClick={() => setShowPassword(!showPassword)}
+                onClick={() => setShowPassword((prev) => !prev)}
                 style={styles.eyeButton}
               >
-                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+                {showPassword ? <EyeOff size={21} /> : <Eye size={21} />}
               </button>
             </motion.div>
 
@@ -370,11 +360,26 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: "absolute",
     left: "16px",
     color: "#556b2f",
+    zIndex: 2,
   },
 
   input: {
     width: "100%",
+    boxSizing: "border-box",
     padding: "18px 18px 18px 50px",
+    borderRadius: "16px",
+    border: "1.5px solid #ececec",
+    fontSize: "16px",
+    outline: "none",
+    backgroundColor: "#ffffff",
+    transition: "0.3s",
+    color: "#1a1a1a",
+  },
+
+  passwordInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "18px 58px 18px 50px",
     borderRadius: "16px",
     border: "1.5px solid #ececec",
     fontSize: "16px",
@@ -386,10 +391,13 @@ const styles: { [key: string]: React.CSSProperties } = {
 
   eyeButton: {
     position: "absolute",
-    right: "14px",
+    right: "18px",
     top: "50%",
     transform: "translateY(-50%)",
-    zIndex: 20,
+    zIndex: 5,
+    width: "28px",
+    height: "28px",
+    padding: 0,
     background: "transparent",
     border: "none",
     display: "flex",
