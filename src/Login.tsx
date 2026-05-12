@@ -233,7 +233,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     minHeight: "100vh",
 
     /* NUEVA IMAGEN */
-    backgroundImage: "url('/antua2.png')",
+    backgroundImage: "url('/antua3.png')",
 
     backgroundSize: "cover",
     backgroundPosition: "center center",
