@@ -1,11 +1,21 @@
 import React, { useState, useEffect } from "react";
 import { supabase } from "./supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
-import { Mail, Lock, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
+import {
+  Mail,
+  Lock,
+  Loader2,
+  CheckCircle2,
+  AlertCircle,
+  Eye,
+  EyeOff,
+} from "lucide-react";
 
 const Login = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
+
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userData, setUserData] = useState<any>(null);
@@ -13,12 +23,15 @@ const Login = () => {
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 992);
+
     window.addEventListener("resize", handleResize);
+
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+
     setLoading(true);
     setError(null);
 
@@ -67,6 +80,7 @@ const Login = () => {
           />
 
           <h2 style={styles.titlePrata}>¡Bienvenido!</h2>
+
           <p style={styles.sessionText}>{userData.nombre}</p>
 
           <button
@@ -179,13 +193,24 @@ const Login = () => {
               <Lock size={18} style={styles.icon} />
 
               <input
-                type="password"
+                type={showPassword ? "text" : "password"}
                 placeholder="Contraseña"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                style={styles.input}
+                style={{
+                  ...styles.input,
+                  paddingRight: "52px",
+                }}
                 required
               />
+
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={styles.eyeButton}
+              >
+                {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
+              </button>
             </motion.div>
 
             <AnimatePresence>
@@ -356,6 +381,18 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: "#ffffff",
     transition: "0.3s",
     color: "#1a1a1a",
+  },
+
+  eyeButton: {
+    position: "absolute",
+    right: "14px",
+    background: "transparent",
+    border: "none",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    color: "#556b2f",
   },
 
   buttonSubmit: {
