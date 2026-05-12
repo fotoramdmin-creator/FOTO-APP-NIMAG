@@ -363,6 +363,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: "relative",
     display: "flex",
     alignItems: "center",
+    width: "100%",
   },
 
   icon: {
@@ -386,6 +387,9 @@ const styles: { [key: string]: React.CSSProperties } = {
   eyeButton: {
     position: "absolute",
     right: "14px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    zIndex: 20,
     background: "transparent",
     border: "none",
     display: "flex",
