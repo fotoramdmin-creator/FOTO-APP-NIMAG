@@ -9,19 +9,18 @@ const Login = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userData, setUserData] = useState<any>(null);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 992);
+  const [isMobile, setIsMobile] = useState(
+    typeof window !== "undefined" ? window.innerWidth < 992 : false
+  );
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 992);
-
     window.addEventListener("resize", handleResize);
-
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setLoading(true);
     setError(null);
 
@@ -32,9 +31,7 @@ const Login = () => {
           password,
         });
 
-      if (authError) {
-        throw new Error("Credenciales incorrectas");
-      }
+      if (authError) throw new Error("Credenciales incorrectas");
 
       const { data: profile } = await supabase
         .from("usuarios")
@@ -59,8 +56,8 @@ const Login = () => {
     return (
       <div style={styles.successContainer}>
         <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
           style={styles.successCard}
         >
           <CheckCircle2
@@ -68,11 +65,8 @@ const Login = () => {
             color="#556b2f"
             style={{ margin: "0 auto 20px" }}
           />
-
           <h2 style={styles.titlePrata}>¡Bienvenido!</h2>
-
           <p style={styles.sessionText}>{userData.nombre}</p>
-
           <button
             onClick={() => window.location.reload()}
             style={styles.buttonLogout}
@@ -91,74 +85,78 @@ const Login = () => {
         gridTemplateColumns: isMobile ? "1fr" : "50% 50%",
       }}
     >
-      {/* PANEL IZQUIERDO */}
+      {/* PANEL IZQUIERDO: IMAGEN ANIMADA CON DIFUMINADO */}
       {!isMobile && (
         <div style={styles.splitLeft}>
-          <div style={styles.overlayDark} />
+          <motion.div
+            initial={{ scale: 1.1, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 2, ease: "easeOut" }}
+            style={{
+              ...styles.imageLayer,
+              backgroundImage: "url('/antua3.png')",
+            }}
+          />
+          {/* Overlay de difuminado orgánico hacia el color crema #f8f6f1 */}
+          <div style={styles.gradientFade} />
         </div>
       )}
 
-      {/* PANEL DERECHO */}
+      {/* PANEL DERECHO: FORMULARIO */}
       <div
         style={{
           ...styles.loginPanel,
-          padding: isMobile ? "22px" : "40px 7%",
+          padding: isMobile ? "20px" : "40px 7%",
         }}
       >
         <motion.div
           initial="hidden"
           animate="visible"
           variants={{
-            visible: {
-              transition: {
-                staggerChildren: 0.1,
-              },
-            },
+            visible: { transition: { staggerChildren: 0.1 } },
           }}
           style={{
             ...styles.formContainer,
-            maxWidth: isMobile ? "420px" : "500px",
+            maxWidth: isMobile ? "420px" : "480px",
             backgroundColor: isMobile ? "#fff" : "transparent",
             boxShadow: isMobile
               ? "0 15px 35px rgba(85, 107, 47, 0.12)"
               : "none",
-            padding: isMobile ? "38px 28px" : "0",
+            padding: isMobile ? "40px 30px" : "0",
           }}
         >
           <header style={styles.header}>
-            <div
-              style={{
-                ...styles.logoPlaceholder,
-                marginBottom: isMobile ? "22px" : "24px",
-              }}
-            >
+            <motion.div variants={itemVariants} style={styles.logoPlaceholder}>
               <img
                 src="/LOGO.png?v=2"
                 alt="Logo"
                 style={{
-                  width: isMobile ? "260px" : "340px",
+                  width: isMobile ? "240px" : "320px",
                   maxWidth: "100%",
                   display: "block",
                 }}
               />
-            </div>
+            </motion.div>
 
-            <h1
+            <motion.h1
+              variants={itemVariants}
               style={{
                 ...styles.titlePrata,
                 fontSize: isMobile ? "32px" : "42px",
+                marginTop: "20px",
               }}
             >
               Foto Estudio Ramírez
-            </h1>
+            </motion.h1>
 
-            <p style={styles.subtitle}>Inicia sesión para continuar</p>
+            <motion.p variants={itemVariants} style={styles.subtitle}>
+              Inicia sesión para continuar
+            </motion.p>
           </header>
 
           <form onSubmit={handleLogin} style={styles.form}>
             <motion.div variants={itemVariants} style={styles.inputGroup}>
               <Mail size={18} style={styles.icon} />
-
               <input
                 type="email"
                 placeholder="Correo electrónico"
@@ -171,7 +169,6 @@ const Login = () => {
 
             <motion.div variants={itemVariants} style={styles.inputGroup}>
               <Lock size={18} style={styles.icon} />
-
               <input
                 type="password"
                 placeholder="Contraseña"
@@ -185,8 +182,9 @@ const Login = () => {
             <AnimatePresence>
               {error && (
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
                   style={styles.errorBox}
                 >
                   <AlertCircle size={16} />
@@ -197,10 +195,7 @@ const Login = () => {
 
             <motion.button
               variants={itemVariants}
-              whileHover={{
-                scale: 1.02,
-                backgroundColor: "#637d37",
-              }}
+              whileHover={{ scale: 1.02, filter: "brightness(1.1)" }}
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
@@ -215,6 +210,11 @@ const Login = () => {
           </form>
         </motion.div>
       </div>
+
+      <style>{`
+        .spinner { animation: spin 1s linear infinite; }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 };
@@ -227,97 +227,90 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: "#f8f6f1",
     overflow: "hidden",
   },
-
   splitLeft: {
     position: "relative",
-    minHeight: "100vh",
-
-    /* NUEVA IMAGEN */
-    backgroundImage: "url('/antua3.png')",
-
-    backgroundSize: "cover",
-    backgroundPosition: "center center",
-    backgroundRepeat: "no-repeat",
+    height: "100vh",
+    overflow: "hidden",
+    backgroundColor: "#000",
   },
-
-  overlayDark: {
+  imageLayer: {
     position: "absolute",
     inset: 0,
-    background: "linear-gradient(to right, rgba(0,0,0,0.10), rgba(0,0,0,0.05))",
-    pointerEvents: "none",
+    backgroundSize: "cover",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    zIndex: 1,
   },
-
+  gradientFade: {
+    position: "absolute",
+    inset: 0,
+    zIndex: 2,
+    // El gradiente crea el desvanecimiento hacia el fondo crema del login
+    background:
+      "linear-gradient(to right, rgba(248, 246, 241, 0) 60%, rgba(248, 246, 241, 1) 98%)",
+  },
   loginPanel: {
     minHeight: "100vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f8f6f1",
+    zIndex: 10,
   },
-
   formContainer: {
     width: "100%",
     borderRadius: "28px",
   },
-
   header: {
     textAlign: "center",
-    marginBottom: "30px",
+    marginBottom: "35px",
   },
-
   logoPlaceholder: {
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
   },
-
   titlePrata: {
     fontFamily: "'Prata', serif",
     color: "#161616",
     fontStyle: "italic",
     margin: "0",
-    lineHeight: 1.08,
+    lineHeight: 1.1,
     textAlign: "center",
   },
-
   subtitle: {
     fontSize: "15px",
     color: "#7b7b7b",
     marginTop: "12px",
     textAlign: "center",
   },
-
   form: {
     display: "flex",
     flexDirection: "column",
-    gap: "16px",
+    gap: "18px",
     width: "100%",
   },
-
   inputGroup: {
     position: "relative",
     display: "flex",
     alignItems: "center",
   },
-
   icon: {
     position: "absolute",
     left: "16px",
     color: "#556b2f",
   },
-
   input: {
     width: "100%",
-    padding: "18px 18px 18px 50px",
+    padding: "18px 18px 18px 52px",
     borderRadius: "16px",
     border: "1.5px solid #ececec",
     fontSize: "16px",
     outline: "none",
     backgroundColor: "#ffffff",
-    transition: "0.3s",
+    transition: "all 0.3s ease",
     color: "#1a1a1a",
   },
-
   buttonSubmit: {
     background: "linear-gradient(135deg, #556b2f 0%, #6b8440 100%)",
     color: "#fff",
@@ -328,10 +321,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 700,
     letterSpacing: "1px",
     cursor: "pointer",
-    boxShadow: "0 10px 25px rgba(85, 107, 47, 0.25)",
-    marginTop: "12px",
+    boxShadow: "0 10px 25px rgba(85, 107, 47, 0.2)",
+    marginTop: "10px",
   },
-
   errorBox: {
     display: "flex",
     alignItems: "center",
@@ -339,10 +331,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: "#c53030",
     fontSize: "13px",
     backgroundColor: "#fff5f5",
-    padding: "12px",
+    padding: "14px",
     borderRadius: "12px",
+    borderLeft: "4px solid #c53030",
   },
-
   successContainer: {
     minHeight: "100vh",
     width: "100%",
@@ -351,29 +343,30 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: "center",
     backgroundColor: "#f8f6f1",
   },
-
   successCard: {
     backgroundColor: "#fff",
-    padding: "50px",
-    borderRadius: "28px",
+    padding: "60px 40px",
+    borderRadius: "32px",
     textAlign: "center",
-    boxShadow: "0 10px 30px rgba(0,0,0,0.1)",
+    boxShadow: "0 20px 40px rgba(0,0,0,0.05)",
+    maxWidth: "400px",
+    width: "90%",
   },
-
   sessionText: {
-    fontSize: "20px",
-    color: "#333",
-    marginBottom: "20px",
+    fontSize: "22px",
+    fontWeight: 500,
+    color: "#161616",
+    marginBottom: "25px",
   },
-
   buttonLogout: {
     backgroundColor: "#556b2f",
     color: "#fff",
-    padding: "12px 24px",
+    padding: "14px 28px",
     border: "none",
-    borderRadius: "10px",
+    borderRadius: "12px",
     cursor: "pointer",
     fontWeight: 600,
+    transition: "transform 0.2s",
   },
 };
 
