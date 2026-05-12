@@ -288,26 +288,30 @@ const styles: { [key: string]: React.CSSProperties } = {
     inset: 0,
     zIndex: 2,
     background:
-      "linear-gradient(to bottom, rgba(0,0,0,0.18), rgba(0,0,0,0.02), rgba(0,0,0,0.22))",
+      "linear-gradient(to bottom, rgba(0,0,0,0.16), rgba(0,0,0,0.02), rgba(0,0,0,0.18))",
     pointerEvents: "none",
   },
 
   gradientFade: {
     position: "absolute",
-    inset: 0,
+    top: 0,
+    right: 0,
+    width: "32%",
+    height: "100%",
     zIndex: 3,
     background:
-      "linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 54%, rgba(248,246,241,0.22) 78%, rgba(248,246,241,1) 100%)",
+      "linear-gradient(to right, rgba(248,246,241,0) 0%, rgba(248,246,241,0.45) 45%, rgba(248,246,241,1) 100%)",
     pointerEvents: "none",
   },
 
   loginPanel: {
+    position: "relative",
+    zIndex: 20,
     minHeight: "100vh",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f8f6f1",
-    zIndex: 10,
   },
 
   formContainer: {
@@ -394,9 +398,9 @@ const styles: { [key: string]: React.CSSProperties } = {
     right: "18px",
     top: "50%",
     transform: "translateY(-50%)",
-    zIndex: 5,
-    width: "28px",
-    height: "28px",
+    zIndex: 30,
+    width: "30px",
+    height: "30px",
     padding: 0,
     background: "transparent",
     border: "none",
