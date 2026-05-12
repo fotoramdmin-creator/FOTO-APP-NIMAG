@@ -13,15 +13,12 @@ const Login = () => {
 
   useEffect(() => {
     const handleResize = () => setIsMobile(window.innerWidth < 992);
-
     window.addEventListener("resize", handleResize);
-
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-
     setLoading(true);
     setError(null);
 
@@ -58,29 +55,27 @@ const Login = () => {
   if (userData) {
     return (
       <div style={styles.successContainer}>
-               {" "}
         <motion.div
-          initial={{ scale: 0.8 }}
-          animate={{ scale: 1 }}
+          initial={{ scale: 0.8, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1 }}
           style={styles.successCard}
         >
-                   {" "}
           <CheckCircle2
             size={70}
             color="#556b2f"
             style={{ margin: "0 auto 20px" }}
           />
-                    <h2 style={styles.titlePrata}>¡Bienvenido!</h2>         {" "}
-          <p style={styles.sessionText}>{userData.nombre}</p>         {" "}
+
+          <h2 style={styles.titlePrata}>¡Bienvenido!</h2>
+          <p style={styles.sessionText}>{userData.nombre}</p>
+
           <button
             onClick={() => window.location.reload()}
             style={styles.buttonLogout}
           >
-                        CERRAR SESIÓN          {" "}
+            CERRAR SESIÓN
           </button>
-                 {" "}
         </motion.div>
-             {" "}
       </div>
     );
   }
@@ -92,20 +87,26 @@ const Login = () => {
         gridTemplateColumns: isMobile ? "1fr" : "50% 50%",
       }}
     >
-            {/* PANEL IZQUIERDO */}     {" "}
       {!isMobile && (
         <div style={styles.splitLeft}>
-                    <div style={styles.overlayDark} />       {" "}
+          <motion.div
+            initial={{ scale: 1.08, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ duration: 1.8, ease: "easeOut" }}
+            style={styles.imageLayer}
+          />
+
+          <div style={styles.overlayDark} />
+          <div style={styles.gradientFade} />
         </div>
       )}
-            {/* PANEL DERECHO */}     {" "}
+
       <div
         style={{
           ...styles.loginPanel,
           padding: isMobile ? "22px" : "40px 7%",
         }}
       >
-               {" "}
         <motion.div
           initial="hidden"
           animate="visible"
@@ -126,16 +127,14 @@ const Login = () => {
             padding: isMobile ? "38px 28px" : "0",
           }}
         >
-                   {" "}
           <header style={styles.header}>
-                       {" "}
-            <div
+            <motion.div
+              variants={itemVariants}
               style={{
                 ...styles.logoPlaceholder,
                 marginBottom: isMobile ? "22px" : "24px",
               }}
             >
-                           {" "}
               <img
                 src="/LOGO.png?v=2"
                 alt="Logo"
@@ -145,26 +144,27 @@ const Login = () => {
                   display: "block",
                 }}
               />
-                         {" "}
-            </div>
-                       {" "}
-            <h1
+            </motion.div>
+
+            <motion.h1
+              variants={itemVariants}
               style={{
                 ...styles.titlePrata,
                 fontSize: isMobile ? "32px" : "42px",
               }}
             >
-                            Foto Estudio Ramírez            {" "}
-            </h1>
-                       {" "}
-            <p style={styles.subtitle}>Inicia sesión para continuar</p>         {" "}
+              Foto Estudio Ramírez
+            </motion.h1>
+
+            <motion.p variants={itemVariants} style={styles.subtitle}>
+              Inicia sesión para continuar
+            </motion.p>
           </header>
-                   {" "}
+
           <form onSubmit={handleLogin} style={styles.form}>
-                       {" "}
             <motion.div variants={itemVariants} style={styles.inputGroup}>
-                            <Mail size={18} style={styles.icon} />
-                           {" "}
+              <Mail size={18} style={styles.icon} />
+
               <input
                 type="email"
                 placeholder="Correo electrónico"
@@ -173,12 +173,11 @@ const Login = () => {
                 style={styles.input}
                 required
               />
-                         {" "}
             </motion.div>
-                       {" "}
+
             <motion.div variants={itemVariants} style={styles.inputGroup}>
-                            <Lock size={18} style={styles.icon} />
-                           {" "}
+              <Lock size={18} style={styles.icon} />
+
               <input
                 type="password"
                 placeholder="Contraseña"
@@ -187,50 +186,58 @@ const Login = () => {
                 style={styles.input}
                 required
               />
-                         {" "}
             </motion.div>
-                       {" "}
+
             <AnimatePresence>
-                           {" "}
               {error && (
                 <motion.div
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
                   style={styles.errorBox}
                 >
-                                    <AlertCircle size={16} />                 {" "}
-                  <span>{error}</span>               {" "}
+                  <AlertCircle size={16} />
+                  <span>{error}</span>
                 </motion.div>
               )}
-                         {" "}
             </AnimatePresence>
-                       {" "}
+
             <motion.button
               variants={itemVariants}
               whileHover={{
                 scale: 1.02,
-                backgroundColor: "#637d37",
+                filter: "brightness(1.1)",
               }}
               whileTap={{ scale: 0.98 }}
               type="submit"
               disabled={loading}
               style={styles.buttonSubmit}
             >
-                           {" "}
               {loading ? (
                 <Loader2 className="spinner" size={20} />
               ) : (
                 "INICIAR SESIÓN"
               )}
-                         {" "}
             </motion.button>
-                     {" "}
           </form>
-                 {" "}
         </motion.div>
-             {" "}
       </div>
-         {" "}
+
+      <style>{`
+        .spinner {
+          animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+          from {
+            transform: rotate(0deg);
+          }
+
+          to {
+            transform: rotate(360deg);
+          }
+        }
+      `}</style>
     </div>
   );
 };
@@ -246,19 +253,36 @@ const styles: { [key: string]: React.CSSProperties } = {
 
   splitLeft: {
     position: "relative",
-    minHeight: "100vh" /* NUEVA IMAGEN */,
+    minHeight: "100vh",
+    overflow: "hidden",
+    backgroundColor: "#050505",
+  },
 
+  imageLayer: {
+    position: "absolute",
+    inset: 0,
     backgroundImage: "url('/antua3.png')",
-
     backgroundSize: "cover",
     backgroundPosition: "center center",
     backgroundRepeat: "no-repeat",
+    zIndex: 1,
   },
 
   overlayDark: {
     position: "absolute",
     inset: 0,
-    background: "linear-gradient(to right, rgba(0,0,0,0.10), rgba(0,0,0,0.05))",
+    zIndex: 2,
+    background:
+      "linear-gradient(to bottom, rgba(0,0,0,0.18), rgba(0,0,0,0.02), rgba(0,0,0,0.22))",
+    pointerEvents: "none",
+  },
+
+  gradientFade: {
+    position: "absolute",
+    inset: 0,
+    zIndex: 3,
+    background:
+      "linear-gradient(to right, rgba(0,0,0,0) 0%, rgba(0,0,0,0) 54%, rgba(248,246,241,0.22) 78%, rgba(248,246,241,1) 100%)",
     pointerEvents: "none",
   },
 
@@ -268,6 +292,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     justifyContent: "center",
     backgroundColor: "#f8f6f1",
+    zIndex: 10,
   },
 
   formContainer: {
@@ -356,6 +381,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     backgroundColor: "#fff5f5",
     padding: "12px",
     borderRadius: "12px",
+    overflow: "hidden",
   },
 
   successContainer: {
