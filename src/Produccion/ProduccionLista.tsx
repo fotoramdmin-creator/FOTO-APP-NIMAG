@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
-import { Clock, RefreshCcw, User, Smartphone } from "lucide-react";
+import { Clock, RefreshCcw, User, Smartphone, Search, X } from "lucide-react";
 
 type FiltroProduccion = "URGENTES" | "HOY" | "GENERAL";
 
@@ -19,6 +19,7 @@ export default function ProduccionLista({
   const [refreshing, setRefreshing] = useState(false);
   const [filtroActivo, setFiltroActivo] =
     useState<FiltroProduccion>("URGENTES");
+  const [busqueda, setBusqueda] = useState("");
   const [ahora, setAhora] = useState(Date.now());
   const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
 
@@ -75,7 +76,7 @@ export default function ProduccionLista({
               ? `${tomas[0]} +${tomas.length - 1}`
               : tomas[0] || "S/T";
 
-          return { ...pedido, resumenTomas: resumen };
+          return { ...pedido, tomas, resumenTomas: resumen };
         })
         .filter((pedido: any) => pedido.resumenTomas !== "S/T");
 
@@ -94,6 +95,12 @@ export default function ProduccionLista({
 
   const hoyStr = new Date().toISOString().slice(0, 10);
 
+  const obtenerCategoria = (pedido: any): FiltroProduccion => {
+    if (pedido.urgente) return "URGENTES";
+    if (pedido.fecha_entrega?.slice(0, 10) === hoyStr) return "HOY";
+    return "GENERAL";
+  };
+
   const listas = useMemo(
     () => ({
       URGENTES: [...pedidos].filter((p) => p.urgente),
@@ -111,6 +118,32 @@ export default function ProduccionLista({
     [pedidos, hoyStr]
   );
 
+  const normalizar = (texto: string) =>
+    texto
+      .toLowerCase()
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim();
+
+  const listaActual = useMemo(() => {
+    const texto = normalizar(busqueda);
+
+    if (!texto) return listas[filtroActivo];
+
+    return pedidos.filter((pedido) => {
+      const nombre = normalizar(pedido.cliente_nombre || "");
+      const tomas = normalizar(
+        [
+          pedido.resumenTomas,
+          ...(pedido.tomas || []),
+          ...(pedido.detalles_pedido || []).map((d: any) => d.n_toma || ""),
+        ].join(" ")
+      );
+
+      return nombre.includes(texto) || tomas.includes(texto);
+    });
+  }, [busqueda, pedidos, listas, filtroActivo]);
+
   const renderTimer = (fechaInicio: string) => {
     const restante = new Date(fechaInicio).getTime() + 30 * 60 * 1000 - ahora;
 
@@ -123,8 +156,6 @@ export default function ProduccionLista({
       isOver: restante <= 0,
     };
   };
-
-  const listaActual = listas[filtroActivo];
 
   return (
     <div style={{ ...styles.container, padding: isMobile ? "16px" : "30px" }}>
@@ -163,11 +194,29 @@ export default function ProduccionLista({
         </motion.button>
       </header>
 
+      <div style={styles.searchBox}>
+        <Search size={18} style={styles.searchIcon} />
+
+        <input
+          value={busqueda}
+          onChange={(e) => setBusqueda(e.target.value)}
+          placeholder="Buscar por nombre o N. de toma..."
+          style={styles.searchInput}
+        />
+
+        {busqueda && (
+          <button onClick={() => setBusqueda("")} style={styles.clearSearch}>
+            <X size={18} />
+          </button>
+        )}
+      </div>
+
       <div
         style={{
           ...styles.tabs,
           overflowX: isMobile ? "auto" : "visible",
           paddingBottom: isMobile ? "10px" : "0",
+          opacity: busqueda ? 0.45 : 1,
         }}
       >
         {[
@@ -192,7 +241,10 @@ export default function ProduccionLista({
         ].map((item) => (
           <button
             key={item.id}
-            onClick={() => setFiltroActivo(item.id as FiltroProduccion)}
+            onClick={() => {
+              setFiltroActivo(item.id as FiltroProduccion);
+              setBusqueda("");
+            }}
             style={{
               ...styles.tabItem,
               minWidth: isMobile ? "110px" : "auto",
@@ -219,6 +271,12 @@ export default function ProduccionLista({
         ))}
       </div>
 
+      {busqueda && (
+        <div style={styles.searchResultText}>
+          Resultados encontrados: <strong>{listaActual.length}</strong>
+        </div>
+      )}
+
       {loading ? (
         <div style={styles.scrollArea}>
           {Array.from({ length: 3 }).map((_, i) => (
@@ -229,9 +287,11 @@ export default function ProduccionLista({
         <div style={styles.scrollArea}>
           <AnimatePresence mode="popLayout">
             {listaActual.map((pedido) => {
-              const timer = pedido.urgente
-                ? renderTimer(pedido.fecha_inicio_urgente)
-                : null;
+              const categoria = obtenerCategoria(pedido);
+              const timer =
+                pedido.urgente && pedido.fecha_inicio_urgente
+                  ? renderTimer(pedido.fecha_inicio_urgente)
+                  : null;
 
               return (
                 <motion.div
@@ -245,7 +305,7 @@ export default function ProduccionLista({
                     ...styles.card,
                     borderLeft: pedido.urgente
                       ? "10px solid #ff4d4d"
-                      : filtroActivo === "HOY"
+                      : categoria === "HOY"
                       ? "10px solid #eab308"
                       : "10px solid #6b7280",
                     padding: isMobile ? "18px" : "24px",
@@ -269,9 +329,19 @@ export default function ProduccionLista({
                         {pedido.resumenTomas}
                       </h2>
 
-                      {pedido.urgente && (
-                        <div style={styles.urgenteLabel}>URGENTE</div>
-                      )}
+                      <div
+                        style={{
+                          ...styles.categoriaLabel,
+                          backgroundColor:
+                            categoria === "URGENTES"
+                              ? "#ff4d4d"
+                              : categoria === "HOY"
+                              ? "#eab308"
+                              : "#6b7280",
+                        }}
+                      >
+                        {categoria === "URGENTES" ? "URGENTE" : categoria}
+                      </div>
                     </div>
 
                     {timer && (
@@ -325,9 +395,15 @@ export default function ProduccionLista({
 
           {!loading && listaActual.length === 0 && (
             <div style={styles.emptyBox}>
-              <p style={styles.emptyTitle}>No hay pedidos en esta bandeja</p>
+              <p style={styles.emptyTitle}>
+                {busqueda
+                  ? "No se encontró ningún pedido"
+                  : "No hay pedidos en esta bandeja"}
+              </p>
               <span style={styles.emptySub}>
-                Cuando lleguen pedidos listos para trabajar aparecerán aquí.
+                {busqueda
+                  ? "Revisa el nombre o número de toma."
+                  : "Cuando lleguen pedidos listos para trabajar aparecerán aquí."}
               </span>
             </div>
           )}
@@ -347,7 +423,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
-    marginBottom: "22px",
+    marginBottom: "18px",
     gap: "16px",
   },
   liveTag: {
@@ -385,6 +461,48 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: "pointer",
     boxShadow: "0 10px 24px rgba(0,0,0,0.10)",
     flexShrink: 0,
+  },
+  searchBox: {
+    position: "relative",
+    marginBottom: "16px",
+  },
+  searchIcon: {
+    position: "absolute",
+    left: "16px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    color: "#6b7280",
+  },
+  searchInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    padding: "17px 48px 17px 48px",
+    borderRadius: "20px",
+    border: "1px solid rgba(0,0,0,0.08)",
+    background: "rgba(255,255,255,0.78)",
+    outline: "none",
+    fontSize: "15px",
+    fontWeight: 700,
+    color: "#111",
+    boxShadow: "0 10px 26px rgba(0,0,0,0.05)",
+  },
+  clearSearch: {
+    position: "absolute",
+    right: "14px",
+    top: "50%",
+    transform: "translateY(-50%)",
+    background: "transparent",
+    border: "none",
+    color: "#6b7280",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+  },
+  searchResultText: {
+    fontSize: "12px",
+    fontWeight: 700,
+    color: "#6b7280",
+    margin: "-10px 0 14px 4px",
   },
   tabs: {
     display: "flex",
@@ -449,8 +567,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontFamily: "'Vidaloka', serif",
     lineHeight: 1,
   },
-  urgenteLabel: {
-    backgroundColor: "#ff4d4d",
+  categoriaLabel: {
     fontSize: "9px",
     fontWeight: 900,
     padding: "5px 9px",
