@@ -1063,7 +1063,35 @@ const Dashboard = ({ session }: { session: any }) => {
               }}
             />
           ) : vistaActiva === "Pantalla" ? (
-            <PantallaTV />
+            <div
+              style={{ position: "relative", width: "100vw", height: "100vh" }}
+            >
+              <button
+                type="button"
+                onClick={() => setVistaActiva("Inicio")}
+                style={{
+                  position: "fixed",
+                  top: 18,
+                  left: 18,
+                  zIndex: 9999,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 999,
+                  border: "1px solid rgba(215,182,93,0.45)",
+                  background: "rgba(0,0,0,0.55)",
+                  color: "#d7b65d",
+                  cursor: "pointer",
+                  fontSize: 20,
+                  fontWeight: 900,
+                  opacity: 0.35,
+                }}
+                title="Volver a inicio"
+              >
+                ←
+              </button>
+
+              <PantallaTV />
+            </div>
           ) : vistaActiva === "Entrega" ? (
             <Entrega usuarioId={perfilComp?.id} />
           ) : vistaActiva === "Retiros Caja" ? (
