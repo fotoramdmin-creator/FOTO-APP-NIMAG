@@ -25,6 +25,8 @@ type PantallaContenido = {
   activo: boolean | null;
   orden: number | null;
   duracion: number | null;
+  categoria: string | null;
+  subcategoria: string | null;
 };
 
 type PedidoTurno = {
@@ -49,18 +51,22 @@ export default function PantallaTV() {
   const [contenido, setContenido] = useState<PantallaContenido[]>([]);
   const [turnos, setTurnos] = useState<PedidoTurno[]>([]);
   const [indexActivo, setIndexActivo] = useState(0);
+  const [categoriaActiva, setCategoriaActiva] = useState<string | null>(null);
   const [hora, setHora] = useState(new Date());
   const [loading, setLoading] = useState(true);
 
-  const contenidoActivo = contenido[indexActivo];
+  const contenidoFiltrado = categoriaActiva
+    ? contenido.filter((item) => item.categoria === categoriaActiva)
+    : contenido;
+  const contenidoActivo = contenidoFiltrado[indexActivo];
 
   const categorias = [
     { titulo: "GRADUACIONES", img: "" },
     { titulo: "BODAS", img: "" },
     { titulo: "XV AÑOS", img: "" },
     { titulo: "RECIÉN NACIDOS", img: "" },
-    { titulo: "FAMILIA", img: "" },
-    { titulo: "RETRATO", img: "" },
+    { titulo: "PROMOCIONES", img: "" },
+    { titulo: "COMUNION", img: "" },
   ];
 
   const cargarContenido = async () => {
@@ -130,16 +136,20 @@ export default function PantallaTV() {
   }, []);
 
   useEffect(() => {
-    if (contenido.length <= 1) return;
+    if (contenidoFiltrado.length <= 1) return;
 
     const duracion = (contenidoActivo?.duracion || 25) * 1000;
 
     const timer = setInterval(() => {
-      setIndexActivo((prev) => (prev + 1) % contenido.length);
+      setIndexActivo((prev) => (prev + 1) % contenidoFiltrado.length);
     }, duracion);
 
     return () => clearInterval(timer);
-  }, [contenido.length, contenidoActivo?.id]);
+  }, [contenidoFiltrado.length, contenidoActivo?.id]);
+
+  useEffect(() => {
+    setIndexActivo(0);
+  }, [categoriaActiva]);
 
   const turnoActual = turnos[0];
   const espera = useMemo(() => turnos.slice(1, 6), [turnos]);
@@ -221,7 +231,7 @@ export default function PantallaTV() {
 
                 <div style={styles.heroText}>
                   <h2>{contenidoActivo?.titulo || "BODAS"}</h2>
-                  <p>AMOR QUE SE CUENTA EN IMÁGENES</p>
+                  <p>PREGUNTA PRECIOS EN MOSTRADOR</p>
                 </div>
               </motion.div>
             </AnimatePresence>
@@ -246,13 +256,41 @@ export default function PantallaTV() {
 
           <section style={styles.categoryGrid}>
             {categorias.map((cat) => (
-              <div key={cat.titulo} style={styles.categoryCard}>
+              <motion.button
+                key={cat.titulo}
+                type="button"
+                onClick={() => {
+                  setCategoriaActiva(cat.titulo);
+                  setIndexActivo(0);
+
+                  setTimeout(() => {
+                    setCategoriaActiva(null);
+                    setIndexActivo(0);
+                  }, 60000);
+                }}
+                style={{
+                  ...styles.categoryCard,
+                  border:
+                    categoriaActiva === cat.titulo
+                      ? "2px solid #f4d67a"
+                      : "1px solid rgba(215,182,93,0.13)",
+                  boxShadow:
+                    categoriaActiva === cat.titulo
+                      ? "0 0 28px rgba(244,214,122,0.35)"
+                      : "none",
+                  cursor: "pointer",
+                }}
+                whileHover={{ scale: 1.04, y: -4 }}
+                whileTap={{ scale: 0.96 }}
+              >
                 <div style={styles.categoryImage}>
                   <MonitorPlay size={34} />
                 </div>
+
                 <div style={styles.categoryTitle}>{cat.titulo}</div>
+
                 <div style={styles.categoryLine} />
-              </div>
+              </motion.button>
             ))}
           </section>
 
@@ -518,7 +556,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     position: "absolute",
     inset: 0,
     background:
-      "linear-gradient(90deg, rgba(0,0,0,0.45), transparent 35%), linear-gradient(0deg, rgba(0,0,0,0.9), transparent 55%)",
+      "linear-gradient(90deg, rgba(0,0,0,0.18), transparent 45%), linear-gradient(0deg, rgba(0,0,0,0.35), transparent 45%)",
   },
 
   heroText: {
