@@ -209,6 +209,15 @@ export default function PantallaTV() {
                       playsInline
                       style={styles.heroMedia}
                     />
+                  ) : contenidoActivo?.url?.toLowerCase().endsWith(".mp4") ? (
+                    <video
+                      src={contenidoActivo.url}
+                      autoPlay
+                      muted
+                      loop
+                      playsInline
+                      style={styles.heroMedia}
+                    />
                   ) : (
                     <img
                       src={contenidoActivo.url}
@@ -228,11 +237,6 @@ export default function PantallaTV() {
                 )}
 
                 <div style={styles.heroGradient} />
-
-                <div style={styles.heroText}>
-                  <h2>{contenidoActivo?.titulo || "BODAS"}</h2>
-                  <p>PREGUNTA PRECIOS EN MOSTRADOR</p>
-                </div>
               </motion.div>
             </AnimatePresence>
 
@@ -425,153 +429,143 @@ const softGold = "#f1d589";
 
 const styles: { [key: string]: React.CSSProperties } = {
   screen: {
-    minHeight: "100vh",
+    height: "100vh",
     width: "100vw",
     background: "#1b1b1b",
     color: "#fff",
     fontFamily: "'Montserrat', sans-serif",
     overflow: "hidden",
     padding: 0,
+    margin: 0,
     boxSizing: "border-box",
   },
+
   shell: {
     height: "100vh",
+    width: "100vw",
     display: "grid",
-    gridTemplateColumns: "300px 1fr 300px",
+    gridTemplateColumns: "12% 73% 15%",
     background: "#020202",
     border: "1px solid rgba(215,182,93,0.18)",
     boxShadow: "0 28px 70px rgba(0,0,0,0.7)",
     overflow: "hidden",
+    boxSizing: "border-box",
   },
+
   leftPanel: {
-    padding: "26px 34px",
+    padding: "2vh 1.5vw",
     borderRight: "1px solid rgba(215,182,93,0.18)",
     display: "flex",
     flexDirection: "column",
     justifyContent: "space-between",
+    overflow: "hidden",
     background:
       "radial-gradient(circle at center, rgba(215,182,93,0.22), transparent 35%), linear-gradient(135deg, #0a0a0a 0%, #000000 35%, #141414 100%)",
   },
-  logoBox: {
-    width: 96,
-    height: 96,
-    border: `2px solid ${gold}`,
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 22,
-  },
+
   logoRealWrap: {
     width: "100%",
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
-    paddingTop: 40,
-    paddingBottom: 10,
+    paddingTop: "3vh",
+    paddingBottom: "1vh",
   },
 
   logoReal: {
-    width: "135%",
-    maxWidth: 500,
+    width: "100%",
+    maxWidth: "92%",
     objectFit: "contain",
     filter: "drop-shadow(0 0 20px rgba(215,182,93,0.22))",
   },
-  brandSmall: {
-    color: "#aaa",
-    fontSize: 11,
-    letterSpacing: 2,
-    marginBottom: 4,
-  },
-  brandTitle: {
-    color: gold,
-    fontSize: 18,
-    letterSpacing: 2,
-  },
-  brandName: {
-    color: gold,
-    fontSize: 38,
-    fontFamily: "'Vidaloka', serif",
-    letterSpacing: 1,
-    lineHeight: 1.05,
-  },
-  brandSub: {
-    color: "#ddd",
-    fontSize: 12,
-    letterSpacing: 4,
-  },
+
   sloganBox: {
     borderLeft: `1px solid rgba(215,182,93,0.28)`,
-    paddingLeft: 18,
-    marginTop: -40,
-    marginBottom: 40,
+    paddingLeft: "1vw",
+    marginTop: "-2vh",
+    marginBottom: "3vh",
   },
+
   sloganSmall: {
-    fontSize: 13,
-    letterSpacing: 2,
+    fontSize: "clamp(10px, 0.75vw, 14px)",
+    letterSpacing: "0.12vw",
     color: "#d8d8d8",
     lineHeight: 1.3,
   },
+
   sloganGold: {
     color: gold,
     fontFamily: "'Vidaloka', serif",
-    fontSize: 22,
+    fontSize: "clamp(17px, 1.35vw, 28px)",
     lineHeight: 1.1,
-    marginTop: 4,
+    marginTop: "0.4vh",
   },
+
   services: {
     display: "grid",
     gridTemplateColumns: "1fr",
-    gap: 18,
+    gap: "1.2vh",
     color: gold,
   },
+
   serviceItem: {
     display: "flex",
     alignItems: "center",
-    gap: 13,
-    fontSize: 11,
-    letterSpacing: 1,
+    gap: "0.7vw",
+    fontSize: "clamp(10px, 0.75vw, 14px)",
+    letterSpacing: "0.08vw",
     color: "#ddd",
   },
+
   center: {
     display: "grid",
-    gridTemplateRows: "1fr 190px 76px",
+    gridTemplateRows: "1fr 18% 7%",
     minWidth: 0,
+    overflow: "hidden",
   },
+
   hero: {
     position: "relative",
     overflow: "hidden",
     borderBottom: "1px solid rgba(215,182,93,0.18)",
+    background: "#000",
   },
+
   heroMediaWrap: {
     position: "absolute",
     inset: 0,
   },
+
   heroMedia: {
     width: "100%",
     height: "100%",
     objectFit: "cover",
     display: "block",
   },
+
   heroGradient: {
     position: "absolute",
     inset: 0,
+    pointerEvents: "none",
     background:
-      "linear-gradient(90deg, rgba(0,0,0,0.18), transparent 45%), linear-gradient(0deg, rgba(0,0,0,0.35), transparent 45%)",
+      "linear-gradient(90deg, rgba(0,0,0,0.10), transparent 40%), linear-gradient(0deg, rgba(0,0,0,0.22), transparent 35%)",
   },
 
   heroText: {
     position: "absolute",
-    left: 44,
-    bottom: 42,
+    left: "2.5vw",
+    bottom: "4vh",
   },
+
   emptyHero: {
     height: "100%",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     color: gold,
-    fontSize: 22,
+    fontSize: "clamp(16px, 1.2vw, 24px)",
   },
+
   previewHero: {
     height: "100%",
     background:
@@ -582,30 +576,34 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: "center",
     color: softGold,
     textAlign: "center",
-    padding: 50,
+    padding: "4vh 4vw",
   },
+
   categoryGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(6, 1fr)",
-    gap: 8,
-    padding: "14px",
+    padding: "1vh 0.8vw",
+    gap: "0.5vw",
     background: "#050505",
     borderBottom: "1px solid rgba(215,182,93,0.18)",
+    overflow: "hidden",
   },
+
   categoryCard: {
     background: "linear-gradient(180deg, #151515, #070707)",
     border: "1px solid rgba(215,182,93,0.13)",
-    borderRadius: 10,
+    borderRadius: "0.6vw",
     overflow: "hidden",
     display: "flex",
     flexDirection: "column",
     alignItems: "center",
     justifyContent: "space-between",
   },
+
   categoryImage: {
     width: "100%",
     flex: 1,
-    minHeight: 105,
+    minHeight: "8vh",
     background:
       "radial-gradient(circle at center, rgba(215,182,93,0.18), transparent 55%), #111",
     display: "flex",
@@ -613,152 +611,182 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: "center",
     color: gold,
   },
+
   categoryTitle: {
-    paddingTop: 10,
-    fontSize: 13,
+    paddingTop: "0.8vh",
+    fontSize: "clamp(11px, 0.85vw, 16px)",
     color: "#fff",
     textAlign: "center",
   },
+
   categoryLine: {
-    width: 28,
-    height: 3,
+    width: "1.6vw",
+    height: "0.3vh",
     background: gold,
-    margin: "9px 0 12px",
+    margin: "0.8vh 0 1vh",
   },
+
   footer: {
     display: "flex",
     alignItems: "center",
     justifyContent: "space-between",
-    padding: "0 36px",
+    padding: "0 2vw",
     background: "#030303",
+    overflow: "hidden",
   },
+
   footerItem: {
     display: "flex",
     alignItems: "center",
-    gap: 14,
+    gap: "0.8vw",
     color: gold,
+    fontSize: "clamp(10px, 0.8vw, 15px)",
   },
+
   social: {
     display: "flex",
     alignItems: "center",
-    gap: 18,
+    gap: "1vw",
     color: gold,
-    fontSize: 13,
-    letterSpacing: 2,
+    fontSize: "clamp(10px, 0.8vw, 15px)",
+    letterSpacing: "0.12vw",
   },
+
   tiktok: {
-    fontSize: 26,
+    fontSize: "clamp(18px, 1.5vw, 28px)",
     color: gold,
     fontWeight: 800,
   },
+
   rightPanel: {
     borderLeft: "1px solid rgba(215,182,93,0.18)",
-    padding: 18,
+    padding: "1vh 0.8vw",
     display: "grid",
-    gridTemplateRows: "1fr 250px 58px",
-    gap: 14,
+    gridTemplateRows: "1fr 23% 6%",
+    gap: "1vh",
+    overflow: "hidden",
     background:
       "linear-gradient(180deg, #3f5222 0%, #2c3a17 45%, #121212 100%)",
   },
+
   turnosBox: {
     background: "linear-gradient(180deg, rgba(0,0,0,0.35), rgba(0,0,0,0.65))",
     border: "1px solid rgba(215,182,93,0.28)",
-    borderRadius: 18,
-    padding: 20,
+    borderRadius: "0.9vw",
+    padding: "1.5vh 1vw",
     boxShadow: "0 18px 40px rgba(0,0,0,0.28)",
     backdropFilter: "blur(12px)",
+    overflow: "hidden",
   },
+
   turnosHeader: {
     display: "flex",
     alignItems: "center",
-    gap: 12,
+    gap: "0.7vw",
     color: gold,
-    marginBottom: 18,
+    marginBottom: "1.5vh",
   },
+
   turnoActualBox: {
     border: `1px solid ${gold}`,
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: "0.7vw",
+    padding: "1vh 0.8vw",
     textAlign: "center",
-    marginBottom: 14,
+    marginBottom: "1.2vh",
   },
+
   esperaTitle: {
     textAlign: "center",
     color: "#ddd",
-    fontSize: 13,
-    marginBottom: 10,
+    fontSize: "clamp(10px, 0.75vw, 14px)",
+    marginBottom: "0.8vh",
   },
+
   esperaList: {
     background: "#0b0b0b",
-    borderRadius: 9,
+    borderRadius: "0.5vw",
     overflow: "hidden",
   },
+
   esperaRow: {
     display: "grid",
-    gridTemplateColumns: "55px 1fr",
-    padding: "10px 12px",
+    gridTemplateColumns: "28% 1fr",
+    padding: "0.8vh 0.6vw",
     borderBottom: "1px solid rgba(255,255,255,0.08)",
-    fontSize: 13,
+    fontSize: "clamp(11px, 0.8vw, 15px)",
   },
+
   noTurnos: {
-    padding: 14,
+    padding: "1vh 0.6vw",
     color: "#999",
-    fontSize: 13,
+    fontSize: "clamp(10px, 0.75vw, 14px)",
     textAlign: "center",
   },
+
   qrBox: {
     background: "linear-gradient(180deg, #0d0d0d, #040404)",
     border: "1px solid rgba(215,182,93,0.18)",
-    borderRadius: 10,
-    padding: 16,
+    borderRadius: "0.6vw",
+    padding: "1vh 0.8vw",
+    overflow: "hidden",
   },
+
   qrFake: {
-    width: 132,
-    height: 132,
+    width: "7vw",
+    height: "7vw",
+    minWidth: 80,
+    minHeight: 80,
     background: "#fff",
     color: "#000",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     float: "left",
-    marginRight: 14,
+    marginRight: "0.8vw",
   },
+
   qrBenefits: {
     color: "#ddd",
-    fontSize: 11,
+    fontSize: "clamp(9px, 0.65vw, 12px)",
     display: "grid",
-    gap: 8,
+    gap: "0.6vh",
   },
+
   phoneLine: {
     clear: "both",
     display: "flex",
     alignItems: "center",
-    gap: 10,
+    gap: "0.6vw",
     color: "#ddd",
-    marginTop: 12,
-    fontSize: 13,
+    marginTop: "1vh",
+    fontSize: "clamp(10px, 0.75vw, 14px)",
   },
+
   bottomInfo: {
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
-    gap: 18,
-    fontSize: 18,
+    gap: "1vw",
+    fontSize: "clamp(13px, 1vw, 20px)",
     color: "#ddd",
   },
+
   dot: {
-    width: 9,
-    height: 9,
+    width: "0.55vw",
+    height: "0.55vw",
+    minWidth: 7,
+    minHeight: 7,
     borderRadius: 20,
     display: "block",
   },
+
   dots: {
     position: "absolute",
-    bottom: 20,
+    bottom: "2vh",
     left: "50%",
     transform: "translateX(-50%)",
     display: "flex",
-    gap: 10,
+    gap: "0.6vw",
     zIndex: 3,
   },
 };
