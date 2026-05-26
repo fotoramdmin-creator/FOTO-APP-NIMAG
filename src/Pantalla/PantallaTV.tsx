@@ -49,6 +49,8 @@ type PedidoTurno = {
   }[];
 };
 
+let ultimoTurnoSonido = "";
+
 export default function PantallaTV() {
   const [contenido, setContenido] = useState<PantallaContenido[]>([]);
   const [turnos, setTurnos] = useState<PedidoTurno[]>([]);
@@ -173,6 +175,19 @@ entregado,
   }, [categoriaActiva]);
 
   const turnoActual = turnos[0];
+  useEffect(() => {
+    if (!turnoActual?.turno_dia) return;
+
+    if (ultimoTurnoSonido !== turnoActual.turno_dia) {
+      ultimoTurnoSonido = turnoActual.turno_dia;
+
+      const audio = new Audio("/turno.wav");
+
+      audio.volume = 1;
+
+      audio.play().catch(() => {});
+    }
+  }, [turnoActual?.turno_dia]);
   const espera = useMemo(() => turnos.slice(1, 6), [turnos]);
 
   const horaTexto = hora.toLocaleTimeString("es-MX", {
