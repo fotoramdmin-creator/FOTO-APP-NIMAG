@@ -14,6 +14,7 @@ import {
   Sparkles,
   Users,
   Video,
+  MessageCircle,
 } from "lucide-react";
 
 type PantallaContenido = {
@@ -377,30 +378,28 @@ export default function PantallaTV() {
           </section>
 
           <section style={styles.qrBox}>
-            <h3>
-              ESCANEA PARA VER <br />
-              <span>NUESTROS CATÁLOGOS</span>
+            <h3 style={styles.whatsTitle}>
+              <motion.div
+                animate={{
+                  scale: [1, 1.08, 1],
+                }}
+                transition={{
+                  repeat: Infinity,
+                  duration: 1.8,
+                }}
+                style={styles.whatsIcon}
+              >
+                <MessageCircle size={34} />
+              </motion.div>
+              CONTÁCTANOS POR <br />
+              <span>WHATSAPP</span>
             </h3>
-
-            <div style={styles.qrFake}>
-              <QrCode size={130} />
-            </div>
-
-            <div style={styles.qrBenefits}>
-              <div>
-                <Gift size={18} /> PAQUETES
-              </div>
-              <div>
-                <Sparkles size={18} /> PROMOCIONES
-              </div>
-              <div>
-                <ImageIcon size={18} /> CATÁLOGOS
-              </div>
-            </div>
-
-            <div style={styles.phoneLine}>
-              <Smartphone size={24} />
-              <span>Desde tu celular fácil y rápido</span>
+            <div style={styles.qrRealWrapper}>
+              <img
+                src="/qr-whats.jpeg"
+                alt="QR WhatsApp"
+                style={styles.qrReal}
+              />
             </div>
           </section>
 
@@ -705,8 +704,10 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: "linear-gradient(180deg, #0d0d0d, #040404)",
     border: "1px solid rgba(215,182,93,0.18)",
     borderRadius: 10,
-    padding: 16,
+    padding: 14,
+    overflow: "hidden",
   },
+
   qrFake: {
     width: 132,
     height: 132,
@@ -718,12 +719,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     float: "left",
     marginRight: 14,
   },
+
   qrBenefits: {
     color: "#ddd",
     fontSize: 11,
     display: "grid",
     gap: 8,
   },
+
   phoneLine: {
     clear: "both",
     display: "flex",
@@ -733,6 +736,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginTop: 12,
     fontSize: 13,
   },
+
   bottomInfo: {
     display: "flex",
     alignItems: "center",
@@ -741,12 +745,14 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: 18,
     color: "#ddd",
   },
+
   dot: {
     width: 9,
     height: 9,
     borderRadius: 20,
     display: "block",
   },
+
   dots: {
     position: "absolute",
     bottom: 20,
@@ -755,5 +761,42 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     gap: 10,
     zIndex: 3,
+  },
+
+  qrRealWrapper: {
+    background: "#fff",
+    borderRadius: "20px",
+    padding: "6px",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+  },
+
+  qrReal: {
+    width: "140px",
+    height: "140px",
+    objectFit: "cover",
+    borderRadius: "14px",
+  },
+
+  whatsTitle: {
+    display: "flex",
+    flexDirection: "column",
+    alignItems: "center",
+    gap: "8px",
+    marginBottom: "10px",
+  },
+
+  whatsIcon: {
+    width: "52px",
+    height: "52px",
+    borderRadius: "50%",
+    background: "rgba(255,255,255,0.08)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    color: "#25D366",
+    boxShadow: "0 0 20px rgba(37,211,102,0.30)",
   },
 };
