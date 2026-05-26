@@ -560,6 +560,18 @@ const Dashboard = ({ session }: { session: any }) => {
       setGuardandoPedido(true);
 
       const ahora = new Date().toISOString();
+      const hoyTurno = new Date().toLocaleDateString("en-CA");
+
+      const { count, error: errorTurno } = await supabase
+        .from("pedidos")
+        .select("id", { count: "exact", head: true })
+        .gte("fecha_creacion", `${hoyTurno}T00:00:00`)
+        .lt("fecha_creacion", `${hoyTurno}T23:59:59`);
+
+      if (errorTurno) throw errorTurno;
+
+      const turnoDia = `A${String((count || 0) + 1).padStart(3, "0")}`;
+
       const pedidoEsUrgente = carrito.some((item) => item.esUrgente);
 
       const totalBruto = carrito.reduce(
@@ -575,6 +587,7 @@ const Dashboard = ({ session }: { session: any }) => {
         .insert([
           {
             cliente_nombre: datosCliente.cliente_nombre,
+            turno_dia: turnoDia,
             cliente_telefono: datosCliente.cliente_telefono || null,
             fecha_creacion: ahora,
             fecha_entrega: pedidoEsUrgente

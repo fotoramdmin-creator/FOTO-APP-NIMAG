@@ -37,6 +37,7 @@ type PedidoTurno = {
   fecha_entrega: string | null;
   horario_entrega: string | null;
   urgente: boolean | null;
+  turno_dia?: string | null;
   cerrado?: boolean | null;
   entregado?: boolean | null;
   detalles_pedido?: {
@@ -93,8 +94,9 @@ export default function PantallaTV() {
         fecha_entrega,
         horario_entrega,
         urgente,
-        cerrado,
-        entregado,
+turno_dia,
+cerrado,
+entregado,
         detalles_pedido (
           id,
           n_toma,
@@ -346,7 +348,7 @@ export default function PantallaTV() {
                   textShadow: "0 0 25px rgba(244,214,122,0.35)",
                 }}
               >
-                {turnoActual ? "A001" : "---"}
+                {turnoActual?.turno_dia || "---"}
               </h1>
 
               <h3
@@ -367,7 +369,7 @@ export default function PantallaTV() {
               {espera.length > 0 ? (
                 espera.map((pedido, i) => (
                   <div key={pedido.id} style={styles.esperaRow}>
-                    <strong>A{String(i + 2).padStart(3, "0")}</strong>
+                    <strong>{pedido.turno_dia || "---"}</strong>
                     <span>{pedido.cliente_nombre || "Cliente"}</span>
                   </div>
                 ))
