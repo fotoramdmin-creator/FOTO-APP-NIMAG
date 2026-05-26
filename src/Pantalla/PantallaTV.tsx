@@ -56,6 +56,21 @@ export default function PantallaTV() {
   const [categoriaActiva, setCategoriaActiva] = useState<string | null>(null);
   const [hora, setHora] = useState(new Date());
   const [loading, setLoading] = useState(true);
+  const [temperatura, setTemperatura] = useState<number | null>(null);
+
+  const cargarClima = async () => {
+    try {
+      const res = await fetch(
+        "https://api.open-meteo.com/v1/forecast?latitude=19.2826&longitude=-99.6557&current=temperature_2m&timezone=America%2FMexico_City"
+      );
+  
+      const data = await res.json();
+  
+      setTemperatura(Math.round(data.current.temperature_2m));
+    } catch (error) {
+      console.warn("No se pudo cargar clima", error);
+    }
+  };
 
   const contenidoFiltrado = categoriaActiva
     ? contenido.filter((item) => item.categoria === categoriaActiva)
@@ -126,15 +141,18 @@ entregado,
       await Promise.all([cargarContenido(), cargarTurnos()]);
       setLoading(false);
     };
-
+  
     iniciar();
-
+    cargarClima();
+  
     const turnosInterval = setInterval(cargarTurnos, 10000);
     const horaInterval = setInterval(() => setHora(new Date()), 1000);
-
+    const climaInterval = setInterval(cargarClima, 10 * 60 * 1000);
+  
     return () => {
       clearInterval(turnosInterval);
       clearInterval(horaInterval);
+      clearInterval(climaInterval);
     };
   }, []);
 
@@ -406,10 +424,14 @@ entregado,
           </section>
 
           <section style={styles.bottomInfo}>
-            <span>☁️ 28°C</span>
-            <span>|</span>
-            <span>{horaTexto}</span>
-          </section>
+  <span>
+    ☁️ {temperatura !== null ? `${temperatura}°C` : "--°C"}
+  </span>
+
+  <span>|</span>
+
+  <span>{horaTexto}</span>
+</section>
         </aside>
       </div>
     </div>
