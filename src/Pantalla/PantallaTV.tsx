@@ -228,11 +228,6 @@ export default function PantallaTV() {
                 )}
 
                 <div style={styles.heroGradient} />
-
-                <div style={styles.heroText}>
-                  <h2>{contenidoActivo?.titulo || "BODAS"}</h2>
-                  <p>PREGUNTA PRECIOS EN MOSTRADOR</p>
-                </div>
               </motion.div>
             </AnimatePresence>
 

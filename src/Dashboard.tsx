@@ -588,6 +588,7 @@ const Dashboard = ({ session }: { session: any }) => {
             total_bruto: totalBruto,
             total_final: totalFinal,
             creado_por: perfilComp?.id || null,
+            creado_por_nombre: perfilComp?.nombre || null,
             resta: totalFinal,
             pagado: false,
             p3_concluido: false,
@@ -607,6 +608,7 @@ const Dashboard = ({ session }: { session: any }) => {
 
       const detalles = carrito.map((item) => ({
         pedido_id: pedidoInsertado.id,
+        cliente_nombre: datosCliente.cliente_nombre || null,
         tamano: item.tamano,
         tipo: item.tipo || null,
         cantidad: Number(item.cantidad || 0),

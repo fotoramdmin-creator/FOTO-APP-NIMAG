@@ -436,12 +436,14 @@ export default function OrdenEnCursoDetalle({
                 </label>
 
                 <input
-                  type="number"
+                  type="text"
+                  inputMode="text"
+                  autoCapitalize="characters"
                   value={tomasPorRenglon[d.id] || ""}
                   onChange={(e) =>
                     setTomasPorRenglon((prev) => ({
                       ...prev,
-                      [d.id]: e.target.value,
+                      [d.id]: e.target.value.toUpperCase(),
                     }))
                   }
                   placeholder="0000"
