@@ -63,9 +63,9 @@ export default function PantallaTV() {
       const res = await fetch(
         "https://api.open-meteo.com/v1/forecast?latitude=19.2826&longitude=-99.6557&current=temperature_2m&timezone=America%2FMexico_City"
       );
-  
+
       const data = await res.json();
-  
+
       setTemperatura(Math.round(data.current.temperature_2m));
     } catch (error) {
       console.warn("No se pudo cargar clima", error);
@@ -141,14 +141,14 @@ entregado,
       await Promise.all([cargarContenido(), cargarTurnos()]);
       setLoading(false);
     };
-  
+
     iniciar();
     cargarClima();
-  
+
     const turnosInterval = setInterval(cargarTurnos, 10000);
     const horaInterval = setInterval(() => setHora(new Date()), 1000);
     const climaInterval = setInterval(cargarClima, 10 * 60 * 1000);
-  
+
     return () => {
       clearInterval(turnosInterval);
       clearInterval(horaInterval);
@@ -424,14 +424,12 @@ entregado,
           </section>
 
           <section style={styles.bottomInfo}>
-  <span>
-    ☁️ {temperatura !== null ? `${temperatura}°C` : "--°C"}
-  </span>
+            <span>☁️ {temperatura !== null ? `${temperatura}°C` : "--°C"}</span>
 
-  <span>|</span>
+            <span>|</span>
 
-  <span>{horaTexto}</span>
-</section>
+            <span>{horaTexto}</span>
+          </section>
         </aside>
       </div>
     </div>
@@ -673,7 +671,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     borderLeft: "1px solid rgba(215,182,93,0.18)",
     padding: 18,
     display: "grid",
-    gridTemplateRows: "1fr 250px 58px",
+    gridTemplateRows: "1fr 280px 58px",
     gap: 14,
     background:
       "linear-gradient(180deg, #3f5222 0%, #2c3a17 45%, #121212 100%)",
@@ -798,8 +796,8 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
 
   qrReal: {
-    width: "140px",
-    height: "140px",
+    width: "130px",
+    height: "128px",
     objectFit: "cover",
     borderRadius: "14px",
   },
