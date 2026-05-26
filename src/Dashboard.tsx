@@ -8,6 +8,7 @@ import OrdenEnCurso1 from "./OrdenCurso/OrdenEnCurso1";
 import OrdenEnCursoDetalle from "./OrdenCurso/OrdenEnCursoDetalle";
 import ProduccionLista from "./Produccion/ProduccionLista";
 import ProduccionDetalle from "./Produccion/ProduccionDetalle";
+import PantallaTV from "./Pantalla/PantallaTV";
 import Entrega from "./Entrega/Entrega";
 import RetirosCajaAdmin from "./Retiros/RetirosCajaAdmin";
 import CuentasLista from "./Cuentas/CuentasLista";
@@ -232,7 +233,9 @@ const Dashboard = ({ session }: { session: any }) => {
   const [nombreParaMostrar, setNombreParaMostrar] =
     useState<string>("Cargando...");
   const [perfilComp, setPerfilComp] = useState<any>(null);
-  const [vistaActiva, setVistaActiva] = useState("Inicio");
+  const [vistaActiva, setVistaActiva] = useState(() => {
+    return localStorage.getItem("vistaActiva") || "Inicio";
+  });
   const [ocultarNavbar, setOcultarNavbar] = useState(false);
 
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<string | null>(
@@ -510,6 +513,9 @@ const Dashboard = ({ session }: { session: any }) => {
 
     return () => window.clearInterval(timer);
   }, [dashboardCards.length]);
+  useEffect(() => {
+    localStorage.setItem("vistaActiva", vistaActiva);
+  }, [vistaActiva]);
 
   const currentCard = dashboardCards[slideActual] || dashboardCards[0];
 
@@ -655,13 +661,28 @@ const Dashboard = ({ session }: { session: any }) => {
 
   return (
     <div style={styles.dashboardWrapper}>
-      <Navbar
-        perfil={perfilComp}
-        setVista={setVistaActiva}
-        ocultarNavbar={ocultarNavbar}
-      />
+      {vistaActiva !== "Pantalla" && (
+        <Navbar
+          perfil={perfilComp}
+          setVista={setVistaActiva}
+          ocultarNavbar={ocultarNavbar}
+        />
+      )}
 
-      <main style={styles.mainContent}>
+      <main
+        style={
+          vistaActiva === "Pantalla"
+            ? {
+                padding: 0,
+                margin: 0,
+                maxWidth: "none",
+                width: "100vw",
+                height: "100vh",
+                overflow: "hidden",
+              }
+            : styles.mainContent
+        }
+      >
         <AnimatePresence mode="wait">
           {vistaActiva === "Inicio" ? (
             <motion.div
@@ -810,7 +831,90 @@ const Dashboard = ({ session }: { session: any }) => {
                     </div>
                     <ArrowUpRight size={24} style={styles.entregaBtnArrow} />
                   </motion.button>
+                  <motion.button
+                    type="button"
+                    onClick={() => setVistaActiva("Pantalla")}
+                    style={{
+                      width: "100%",
+                      minHeight: "110px",
+                      borderRadius: "30px",
+                      border: "none",
+                      background:
+                        "linear-gradient(135deg, #111111 0%, #1c1c1c 100%)",
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "space-between",
+                      padding: "0 30px",
+                      cursor: "pointer",
+                      boxShadow: "0 12px 24px rgba(0,0,0,0.25)",
+                    }}
+                    whileHover={{
+                      y: -5,
+                      scale: 1.02,
+                      boxShadow: "0 24px 48px rgba(0,0,0,0.35)",
+                    }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: "20px",
+                      }}
+                    >
+                      <div
+                        style={{
+                          width: "60px",
+                          height: "60px",
+                          borderRadius: "20px",
+                          backgroundColor: "#b89f54",
+                          display: "flex",
+                          alignItems: "center",
+                          justifyContent: "center",
+                          color: "#000",
+                          fontWeight: 900,
+                          fontSize: "18px",
+                        }}
+                      >
+                        TV
+                      </div>
 
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-start",
+                          gap: "6px",
+                        }}
+                      >
+                        <span
+                          style={{
+                            fontSize: "24px",
+                            fontWeight: 800,
+                            color: "#fff",
+                          }}
+                        >
+                          Pantalla
+                        </span>
+
+                        <span
+                          style={{
+                            fontSize: "14px",
+                            color: "rgba(255,255,255,0.7)",
+                          }}
+                        >
+                          Promociones y turnos en tiempo real
+                        </span>
+                      </div>
+                    </div>
+
+                    <ArrowUpRight
+                      size={24}
+                      style={{
+                        color: "#b89f54",
+                      }}
+                    />
+                  </motion.button>
                   {perfilComp?.admin ? (
                     <div style={styles.adminCardsGrid}>
                       {accesosAdmin.map((item, index) => (
@@ -958,6 +1062,36 @@ const Dashboard = ({ session }: { session: any }) => {
                 setVistaActiva("Producción");
               }}
             />
+          ) : vistaActiva === "Pantalla" ? (
+            <div
+              style={{ position: "relative", width: "100vw", height: "100vh" }}
+            >
+              <button
+                type="button"
+                onClick={() => setVistaActiva("Inicio")}
+                style={{
+                  position: "fixed",
+                  top: 18,
+                  left: 18,
+                  zIndex: 9999,
+                  width: 44,
+                  height: 44,
+                  borderRadius: 999,
+                  border: "1px solid rgba(215,182,93,0.45)",
+                  background: "rgba(0,0,0,0.55)",
+                  color: "#d7b65d",
+                  cursor: "pointer",
+                  fontSize: 20,
+                  fontWeight: 900,
+                  opacity: 0.35,
+                }}
+                title="Volver a inicio"
+              >
+                ←
+              </button>
+
+              <PantallaTV />
+            </div>
           ) : vistaActiva === "Entrega" ? (
             <Entrega usuarioId={perfilComp?.id} />
           ) : vistaActiva === "Retiros Caja" ? (
