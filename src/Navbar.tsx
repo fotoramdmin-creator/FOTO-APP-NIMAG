@@ -10,6 +10,7 @@ import {
   ArrowRight,
   Plus,
   Sparkles,
+  PencilLine,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -133,6 +134,11 @@ const Navbar = ({
       icon: <Factory size={18} />,
       badgeUrgentes,
       badgeHoy,
+    },
+    {
+      name: "Editar",
+      view: "Editar",
+      icon: <PencilLine size={18} />,
     },
   ];
 

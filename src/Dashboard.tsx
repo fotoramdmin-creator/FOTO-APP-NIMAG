@@ -18,6 +18,7 @@ import ConfigPrecios from "./Configuracion/ConfigPrecios";
 import ConfigUsuarios from "./Configuracion/ConfigUsuarios";
 import ConfigAccesos from "./Configuracion/ConfigAccesos";
 import { supabase } from "./supabaseClient";
+import EditarPedido from "./Editar/EditarPedido";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowUpRight,
@@ -1069,14 +1070,21 @@ const Dashboard = ({ session }: { session: any }) => {
               setPedidoSeleccionado={setPedidoSeleccionado}
               setVistaActiva={setVistaActiva}
             />
-          ) : vistaActiva === "Producción Detalle" && pedidoSeleccionado ? (
-            <ProduccionDetalle
-              pedidoId={pedidoSeleccionado}
-              onBack={() => {
-                setPedidoSeleccionado(null);
-                setVistaActiva("Producción");
-              }}
-            />
+          ) : vistaActiva === "Producción Detalle" ? (
+            pedidoSeleccionado ? (
+              <ProduccionDetalle
+                pedidoId={pedidoSeleccionado}
+                onBack={() => {
+                  setVistaActiva("Producción");
+                  setPedidoSeleccionado(null);
+                }}
+              />
+            ) : (
+              <ProduccionLista
+                setPedidoSeleccionado={setPedidoSeleccionado}
+                setVistaActiva={setVistaActiva}
+              />
+            )
           ) : vistaActiva === "Pantalla" ? (
             <div
               style={{ position: "relative", width: "100vw", height: "100vh" }}
@@ -1107,6 +1115,8 @@ const Dashboard = ({ session }: { session: any }) => {
 
               <PantallaTV />
             </div>
+          ) : vistaActiva === "Editar" ? (
+            <EditarPedido perfil={perfilComp} />
           ) : vistaActiva === "Entrega" ? (
             <Entrega usuarioId={perfilComp?.id} />
           ) : vistaActiva === "Retiros Caja" ? (

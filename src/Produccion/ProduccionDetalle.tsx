@@ -328,9 +328,7 @@ export default function ProduccionDetalle({ pedidoId, onBack }: Props) {
       <div style={styles.topBar}>
         <button
           type="button"
-          onClick={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
+          onClick={() => {
             onBack();
           }}
           style={styles.backBtn}
@@ -641,7 +639,12 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: "linear-gradient(180deg, #f7f5f0 0%, #f1eee8 100%)",
     fontFamily: "'Montserrat', sans-serif",
   },
-  topBar: { marginBottom: "14px" },
+  topBar: {
+    marginBottom: "14px",
+    position: "relative",
+    zIndex: 20,
+  },
+
   backBtn: {
     border: "none",
     background: "#111",

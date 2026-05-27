@@ -93,26 +93,43 @@ export default function ProduccionLista({
     cargarPedidos();
   }, [cargarPedidos]);
 
-  const hoyStr = new Date().toISOString().slice(0, 10);
+  const obtenerFechaHoyLocal = () => {
+    const ahora = new Date();
+    const year = ahora.getFullYear();
+    const month = String(ahora.getMonth() + 1).padStart(2, "0");
+    const day = String(ahora.getDate()).padStart(2, "0");
+    return `${year}-${month}-${day}`;
+  };
+
+  const obtenerFechaEntrega = (fecha?: string | null) => {
+    if (!fecha) return "";
+    return String(fecha).slice(0, 10);
+  };
+
+  const hoyStr = obtenerFechaHoyLocal();
 
   const obtenerCategoria = (pedido: any): FiltroProduccion => {
     if (pedido.urgente) return "URGENTES";
-    if (pedido.fecha_entrega?.slice(0, 10) === hoyStr) return "HOY";
+    if (obtenerFechaEntrega(pedido.fecha_entrega) === hoyStr) return "HOY";
     return "GENERAL";
   };
 
   const listas = useMemo(
     () => ({
       URGENTES: [...pedidos].filter((p) => p.urgente),
+
       HOY: [...pedidos]
-        .filter((p) => !p.urgente && p.fecha_entrega?.slice(0, 10) === hoyStr)
+        .filter(
+          (p) => !p.urgente && obtenerFechaEntrega(p.fecha_entrega) === hoyStr
+        )
         .sort((a, b) => {
           const ha = a.horario_entrega || "99:99";
           const hb = b.horario_entrega || "99:99";
           return ha.localeCompare(hb);
         }),
+
       GENERAL: [...pedidos].filter(
-        (p) => !p.urgente && p.fecha_entrega?.slice(0, 10) !== hoyStr
+        (p) => !p.urgente && obtenerFechaEntrega(p.fecha_entrega) !== hoyStr
       ),
     }),
     [pedidos, hoyStr]
