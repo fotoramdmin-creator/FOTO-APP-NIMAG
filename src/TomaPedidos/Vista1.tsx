@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
+import PedidoEspecial from "./PedidoEspecial";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Zap,
@@ -8,6 +9,7 @@ import {
   ChevronDown,
   ShoppingBag,
   ArrowRight,
+  Sparkles,
   Plus,
   X,
   Image as ImageIcon,
@@ -57,6 +59,7 @@ type SeleccionType = {
 type ItemCarrito = {
   id: number | string;
   usuarioId?: string;
+  esManual?: boolean;
   usuarioNombre?: string;
   tamano: string;
   cantidad: number;
@@ -119,6 +122,9 @@ const Vista1 = ({
   setCarrito: React.Dispatch<React.SetStateAction<ItemCarrito[]>>;
 }) => {
   const [catalogo, setCatalogo] = useState<CatalogoItem[]>([]);
+  const [mostrarPedidoEspecial, setMostrarPedidoEspecial] = useState(false);
+  const [pedidoEspecialEditando, setPedidoEspecialEditando] =
+    useState<ItemCarrito | null>(null);
   const [usuarios, setUsuarios] = useState<UsuarioRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -413,6 +419,12 @@ const Vista1 = ({
   };
 
   const editarRenglon = (item: ItemCarrito) => {
+    if (item.esManual) {
+      setPedidoEspecialEditando(item);
+      setMostrarPedidoEspecial(true);
+      return;
+    }
+
     setEditandoId(item.id);
     setSeleccion({
       usuarioId: item.usuarioId || "",
@@ -425,6 +437,7 @@ const Vista1 = ({
       esKenfor: Boolean(item.esKenfor),
       especificaciones: item.especificaciones || "",
     });
+
     setMostrarTamanos(false);
     setMostrarConfirmCerrar(false);
     setMostrarFormulario(true);
@@ -448,19 +461,35 @@ const Vista1 = ({
     setMostrarConfirmEliminar(false);
     setIdAEliminar(null);
   };
-
   if (loading) {
+    return <div>...</div>;
+  }
+
+  if (mostrarPedidoEspecial) {
     return (
-      <div
-        style={{
-          ...styles.page,
-          padding: "80px 20px",
-          textAlign: "center",
-          color: THEME.textSoft,
+      <PedidoEspecial
+        itemEditando={pedidoEspecialEditando}
+        onBack={() => {
+          setMostrarPedidoEspecial(false);
+          setPedidoEspecialEditando(null);
+          setOcultarNavbar(false);
         }}
-      >
-        Cargando catálogo...
-      </div>
+        onAgregar={(item) => {
+          setCarrito((prev) => {
+            if (pedidoEspecialEditando) {
+              return prev.map((r) =>
+                r.id === pedidoEspecialEditando.id ? item : r
+              );
+            }
+
+            return [...prev, item];
+          });
+
+          setMostrarPedidoEspecial(false);
+          setPedidoEspecialEditando(null);
+          setOcultarNavbar(false);
+        }}
+      />
     );
   }
 
@@ -598,6 +627,22 @@ const Vista1 = ({
             >
               <Plus size={20} />
               Agregar renglón
+            </motion.button>
+            <motion.button
+              type="button"
+              onClick={() => setMostrarPedidoEspecial(true)}
+              whileHover={{ y: -4, scale: 1.01 }}
+              whileTap={{ scale: 0.98 }}
+              style={{
+                ...styles.addLineBtn,
+                background: "#12110F",
+                color: "#FFFFFF",
+                border: "1px solid rgba(184,159,84,0.45)",
+                marginTop: 10,
+              }}
+            >
+              <Sparkles size={20} />
+              Pedido especial
             </motion.button>
           </div>
         </section>
@@ -1083,7 +1128,6 @@ const Vista1 = ({
                   </motion.button>
                 </div>
               </motion.div>
-
               <AnimatePresence>
                 {mostrarConfirmCerrar && (
                   <motion.div
@@ -1125,51 +1169,54 @@ const Vista1 = ({
                     </div>
                   </motion.div>
                 )}
-
-                {mostrarConfirmEliminar && (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95, y: 20 }}
-                    animate={{ opacity: 1, scale: 1, y: 0 }}
-                    exit={{ opacity: 0, scale: 0.95, y: 20 }}
-                    transition={{ duration: 0.25 }}
-                    style={styles.confirmCard}
-                    onClick={(e) => e.stopPropagation()}
-                  >
-                    <div style={styles.confirmTitle}>
-                      ¿Eliminar este renglón?
-                    </div>
-
-                    <div style={styles.confirmText}>
-                      Esta acción no se puede deshacer.
-                    </div>
-
-                    <div style={styles.confirmActions}>
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.96 }}
-                        type="button"
-                        onClick={() => setMostrarConfirmEliminar(false)}
-                        style={styles.confirmSecondaryBtn}
-                      >
-                        Cancelar
-                      </motion.button>
-
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.96 }}
-                        type="button"
-                        onClick={eliminarRenglon}
-                        style={{
-                          ...styles.confirmPrimaryBtn,
-                          backgroundColor: "#c62828",
-                        }}
-                      >
-                        Eliminar
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                )}
               </AnimatePresence>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {mostrarConfirmEliminar && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ duration: 0.25 }}
+              style={styles.confirmCard}
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div style={styles.confirmTitle}>¿Eliminar este renglón?</div>
+
+              <div style={styles.confirmText}>
+                Esta acción no se puede deshacer.
+              </div>
+
+              <div style={styles.confirmActions}>
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.96 }}
+                  type="button"
+                  onClick={() => {
+                    setMostrarConfirmEliminar(false);
+                    setIdAEliminar(null);
+                  }}
+                  style={styles.confirmSecondaryBtn}
+                >
+                  Cancelar
+                </motion.button>
+
+                <motion.button
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.96 }}
+                  type="button"
+                  onClick={eliminarRenglon}
+                  style={{
+                    ...styles.confirmPrimaryBtn,
+                    backgroundColor: "#c62828",
+                  }}
+                >
+                  Eliminar
+                </motion.button>
+              </div>
             </motion.div>
           )}
         </AnimatePresence>
