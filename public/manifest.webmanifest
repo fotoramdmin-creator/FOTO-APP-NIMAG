@@ -1,0 +1,23 @@
+{
+    "name": "Foto Estudio Ramírez",
+    "short_name": "Foto Ramírez",
+    "description": "Sistema interno Foto Estudio Ramírez",
+    "start_url": "/",
+    "scope": "/",
+    "display": "standalone",
+    "background_color": "#F4F1EA",
+    "theme_color": "#36412e",
+    "orientation": "any",
+    "icons": [
+      {
+        "src": "/CDR.png",
+        "sizes": "192x192",
+        "type": "image/png"
+      },
+      {
+        "src": "/CDR.png",
+        "sizes": "512x512",
+        "type": "image/png"
+      }
+    ]
+  }
