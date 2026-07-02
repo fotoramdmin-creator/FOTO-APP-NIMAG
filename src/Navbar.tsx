@@ -25,13 +25,15 @@ const Navbar = ({
 }) => {
   const [isOpen, setIsOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const [isMobile, setIsMobile] = useState(window.innerWidth < 768);
+  const [anchoPantalla, setAnchoPantalla] = useState(window.innerWidth);
+  const isMobile = anchoPantalla < 768;
+  const isTablet = anchoPantalla >= 768 && anchoPantalla < 1180;
   const [badgeUrgentes, setBadgeUrgentes] = useState(0);
   const [badgeHoy, setBadgeHoy] = useState(0);
 
   useEffect(() => {
     const handleScroll = () => setScrolled(window.scrollY > 10);
-    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    const handleResize = () => setAnchoPantalla(window.innerWidth);
 
     window.addEventListener("scroll", handleScroll);
     window.addEventListener("resize", handleResize);
@@ -174,18 +176,34 @@ const Navbar = ({
                 alt="Foto Studio Ramírez"
                 style={{
                   ...styles.logoImg,
-                  height: scrolled ? "180px" : "240px",
+                  height: isTablet
+                    ? scrolled
+                      ? "140px"
+                      : "180px"
+                    : scrolled
+                    ? "180px"
+                    : "240px",
                 }}
               />
             </motion.div>
 
             {!isMobile && (
-              <div style={styles.pcMenu}>
+              <div
+                style={{
+                  ...styles.pcMenu,
+                  gap: isTablet ? "2px" : "5px",
+                }}
+              >
                 {menuItems.map((item) => (
                   <motion.button
                     key={item.name}
                     onClick={() => setVista(item.view)}
-                    style={styles.navLink}
+                    style={{
+                      ...styles.navLink,
+                      padding: isTablet ? "10px 12px" : "12px 18px",
+                      fontSize: isTablet ? "11px" : "12px",
+                      letterSpacing: isTablet ? "0.8px" : "1.5px",
+                    }}
                     whileHover={{
                       backgroundColor: "rgba(255,255,255,0.08)",
                       y: -2,
@@ -218,7 +236,11 @@ const Navbar = ({
                 <div style={styles.divider} />
 
                 <motion.div
-                  style={styles.userInfoBadge}
+                  style={{
+                    ...styles.userInfoBadge,
+                    gap: isTablet ? "8px" : "15px",
+                    padding: isTablet ? "7px 8px" : "8px 10px 8px 15px",
+                  }}
                   initial={{ opacity: 0, x: 20 }}
                   animate={{ opacity: 1, x: 0 }}
                 >

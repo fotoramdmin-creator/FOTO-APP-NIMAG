@@ -131,6 +131,7 @@ const Vista1 = ({
   const [mostrarUsuarios, setMostrarUsuarios] = useState(false);
   const [mostrarFormulario, setMostrarFormulario] = useState(false);
   const [mostrarTamanos, setMostrarTamanos] = useState(false);
+  const [busquedaTamano, setBusquedaTamano] = useState("");
   const [mostrarConfirmCerrar, setMostrarConfirmCerrar] = useState(false);
   const [mostrarConfirmEliminar, setMostrarConfirmEliminar] = useState(false);
 
@@ -198,6 +199,15 @@ const Vista1 = ({
   const tamanosUnicos = useMemo(() => {
     return Array.from(new Set(catalogo.map((i) => i.tamano))).sort();
   }, [catalogo]);
+  const tamanosFiltrados = useMemo(() => {
+    const texto = busquedaTamano.trim().toLowerCase();
+
+    if (!texto) return tamanosUnicos;
+
+    return tamanosUnicos.filter((tamano) =>
+      String(tamano).toLowerCase().includes(texto)
+    );
+  }, [tamanosUnicos, busquedaTamano]);
 
   const cantidadesDisponibles = useMemo(() => {
     if (!seleccion.tamano) return [];
@@ -848,7 +858,26 @@ const Vista1 = ({
                         >
                           <div style={styles.selectorOptionsWrap}>
                             <div style={styles.selectorOptionsGrid}>
-                              {tamanosUnicos.map((t) => {
+                              <input
+                                type="text"
+                                placeholder="Buscar tamaño... (Ej. INF, CART, TÍT...)"
+                                value={busquedaTamano}
+                                onChange={(e) =>
+                                  setBusquedaTamano(e.target.value)
+                                }
+                                style={{
+                                  width: "100%",
+                                  padding: "14px 16px",
+                                  borderRadius: "14px",
+                                  border: "1px solid #d6d3d1",
+                                  fontSize: "15px",
+                                  fontWeight: 600,
+                                  marginBottom: "16px",
+                                  outline: "none",
+                                  boxSizing: "border-box",
+                                }}
+                              />
+                              {tamanosFiltrados.map((t) => {
                                 const activo = seleccion.tamano === t;
 
                                 return (
