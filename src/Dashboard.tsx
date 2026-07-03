@@ -530,13 +530,6 @@ const Dashboard = ({ session }: { session: any }) => {
       view: "Configuracion",
     },
     {
-      icon: <Search size={24} />,
-      title: "Búsqueda",
-      subtitle: "Consultar y editar pedidos",
-      color: "#2f5d50",
-      view: "Busqueda",
-    },
-    {
       icon: <Wallet size={24} />,
       title: "Retiro de Caja",
       subtitle: "Movimientos y retiros",
@@ -552,6 +545,15 @@ const Dashboard = ({ session }: { session: any }) => {
     },
   ];
 
+  const accesosGenerales: AdminAccess[] = [
+    {
+      icon: <Search size={24} />,
+      title: "Búsqueda",
+      subtitle: "Consultar y editar pedidos",
+      color: "#2f5d50",
+      view: "Busqueda",
+    },
+  ];
   const reiniciarFlujoPedido = () => {
     setDatosCliente({
       cliente_nombre: "",
@@ -840,9 +842,9 @@ const Dashboard = ({ session }: { session: any }) => {
                     </div>
                     <ArrowUpRight size={24} style={styles.entregaBtnArrow} />
                   </motion.button>
-                  {perfilComp?.admin ? (
-                    <div style={styles.adminCardsGrid}>
-                      {accesosAdmin.map((item, index) => (
+                  <div style={styles.adminCardsGrid}>
+                    {(perfilComp?.admin ? accesosAdmin : accesosGenerales).map(
+                      (item, index) => (
                         <motion.button
                           key={item.title}
                           type="button"
@@ -880,19 +882,21 @@ const Dashboard = ({ session }: { session: any }) => {
                             </div>
                           </div>
 
-                          <div style={styles.adminCardPill}>
-                            <Lock size={12} />
-                            <span>Admin</span>
-                          </div>
+                          {perfilComp?.admin && (
+                            <div style={styles.adminCardPill}>
+                              <Lock size={12} />
+                              <span>Admin</span>
+                            </div>
+                          )}
 
                           <ArrowUpRight
                             size={18}
                             style={styles.adminCardArrow}
                           />
                         </motion.button>
-                      ))}
-                    </div>
-                  ) : null}
+                      )
+                    )}
+                  </div>
                 </div>
               </section>
 

@@ -1,5 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
+import { compartirTicketPdf } from "../Ticket/generarTicket";
+import { enviarWhatsApp } from "../Ticket/enviarWhatsApp";
 import {
   AlertTriangle,
   CalendarDays,
@@ -10,6 +12,8 @@ import {
   User,
   Wallet,
   Layers,
+  MessageCircle,
+  Printer,
   FileText,
 } from "lucide-react";
 
@@ -160,6 +164,43 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
     if (!pedido) return 0;
     return numero(pedido.total_final) - totalPagadoCalculado;
   }, [pedido?.total_final, totalPagadoCalculado]);
+  const pedidoParaTicket = () => {
+    if (!pedido) return null;
+
+    return {
+      ...pedido,
+      cliente_nombre: pedido.cliente_nombre || "",
+      cliente_telefono: pedido.cliente_telefono || "",
+      fecha_entrega: pedido.fecha_entrega || "",
+      horario_entrega: pedido.horario_entrega || "",
+      total_pagado: totalPagadoCalculado,
+      resta: restaCalculada,
+      detalles_pedido: detalles.map((d) => ({
+        ...d,
+        id: d.id,
+        pedido_id: d.pedido_id || "",
+        tamano: d.tamano || "",
+        cantidad: numero(d.cantidad),
+        tipo: d.tipo || "",
+        papel: d.papel || "",
+        especificaciones: d.especificaciones || "",
+        n_toma: d.n_toma || "",
+      })),
+    };
+  };
+  const reenviarWhats = () => {
+    const pedidoActualizado = pedidoParaTicket();
+    if (!pedidoActualizado) return;
+
+    enviarWhatsApp(pedidoActualizado);
+  };
+
+  const compartirTicket = async () => {
+    const pedidoActualizado = pedidoParaTicket();
+    if (!pedidoActualizado) return;
+
+    await compartirTicketPdf(pedidoActualizado);
+  };
 
   const guardarCambios = async () => {
     if (!pedido) return;
@@ -208,6 +249,15 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
       }
 
       alert("Cambios guardados correctamente");
+      setPedido((prev) =>
+        prev
+          ? {
+              ...prev,
+              total_pagado: totalPagado,
+              resta,
+            }
+          : prev
+      );
 
       if (onSaved) onSaved();
 
@@ -471,6 +521,23 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
       <div style={styles.bottomBar}>
         <button style={styles.cancelBtn} onClick={onBack} disabled={saving}>
           Volver
+        </button>
+        <button
+          style={styles.whatsBtn}
+          onClick={reenviarWhats}
+          disabled={saving}
+        >
+          <MessageCircle size={18} />
+          WhatsApp
+        </button>
+
+        <button
+          style={styles.ticketBtn}
+          onClick={compartirTicket}
+          disabled={saving}
+        >
+          <Printer size={18} />
+          Ticket
         </button>
 
         <button
@@ -753,14 +820,13 @@ const styles: { [key: string]: React.CSSProperties } = {
     background: "rgba(244,241,234,0.96)",
     backdropFilter: "blur(10px)",
     borderTop: "1px solid rgba(0,0,0,0.08)",
-    padding: "12px 16px",
-    display: "flex",
-    gap: 10,
-    justifyContent: "center",
+    padding: "10px 12px",
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))",
+    gap: 8,
     zIndex: 50,
   },
   cancelBtn: {
-    width: "min(180px, 35%)",
     border: "none",
     borderRadius: 16,
     padding: "14px 16px",
@@ -770,13 +836,39 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: "pointer",
   },
   saveBtn: {
-    width: "min(420px, 65%)",
     border: "none",
     borderRadius: 16,
     padding: "14px 16px",
     fontWeight: 900,
     background: THEME.black,
     color: THEME.white,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  whatsBtn: {
+    border: "none",
+    borderRadius: 16,
+    padding: "14px 16px",
+    fontWeight: 900,
+    background: "#25D366",
+    color: THEME.white,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+
+  ticketBtn: {
+    border: "none",
+    borderRadius: 16,
+    padding: "14px 16px",
+    fontWeight: 900,
+    background: THEME.gold,
+    color: THEME.black,
     cursor: "pointer",
     display: "flex",
     alignItems: "center",

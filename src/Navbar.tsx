@@ -137,11 +137,6 @@ const Navbar = ({
       badgeUrgentes,
       badgeHoy,
     },
-    {
-      name: "Editar",
-      view: "Editar",
-      icon: <PencilLine size={18} />,
-    },
   ];
 
   return (
