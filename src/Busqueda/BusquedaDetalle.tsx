@@ -73,6 +73,12 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
+  const numero = (valor: any) => {
+    if (valor === "" || valor === null || valor === undefined) return 0;
+    const n = Number(valor);
+    return Number.isNaN(n) ? 0 : n;
+  };
+
   const cargarPedido = async () => {
     try {
       setLoading(true);
@@ -105,7 +111,9 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
             tipo,
             papel,
             especificaciones,
-            n_toma
+            n_toma,
+            subtotal,
+            precio_unitario
           )
         `
         )
@@ -151,12 +159,6 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
     );
   };
 
-  const numero = (valor: any) => {
-    if (valor === "" || valor === null || valor === undefined) return 0;
-    const n = Number(valor);
-    return Number.isNaN(n) ? 0 : n;
-  };
-
   const totalPagadoCalculado = useMemo(() => {
     if (!pedido) return 0;
     return numero(pedido.anticipo) + numero(pedido.liquidacion);
@@ -166,6 +168,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
     if (!pedido) return 0;
     return numero(pedido.total_final) - totalPagadoCalculado;
   }, [pedido?.total_final, totalPagadoCalculado]);
+
   const pedidoParaTicket = () => {
     if (!pedido) return null;
 
@@ -175,6 +178,8 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
       cliente_telefono: pedido.cliente_telefono || "",
       fecha_entrega: pedido.fecha_entrega || "",
       horario_entrega: pedido.horario_entrega || "",
+      total_bruto: numero(pedido.total_bruto),
+      total_final: numero(pedido.total_final),
       total_pagado: totalPagadoCalculado,
       resta: restaCalculada,
       detalles_pedido: detalles.map((d) => ({
@@ -190,6 +195,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
       })),
     };
   };
+
   const reenviarWhats = () => {
     const pedidoActualizado = pedidoParaTicket();
     if (!pedidoActualizado) return;
@@ -210,10 +216,12 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
     try {
       setSaving(true);
 
+      const totalBruto = numero(pedido.total_bruto);
+      const totalFinal = numero(pedido.total_final);
       const totalPagado = totalPagadoCalculado;
-      const resta = restaCalculada;
+      const resta = totalFinal - totalPagado;
 
-      const { error: pedidoError } = await supabase
+      const { data: pedidoActualizado, error: pedidoError } = await supabase
         .from("pedidos")
         .update({
           cliente_nombre: pedido.cliente_nombre || null,
@@ -223,14 +231,20 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
           urgente: !!pedido.urgente,
           pagado: !!pedido.pagado,
           entregado: !!pedido.entregado,
-          total_bruto: numero(pedido.total_bruto),
-          total_final: numero(pedido.total_final),
+          total_bruto: totalBruto,
+          total_final: totalFinal,
           anticipo: numero(pedido.anticipo),
           liquidacion: numero(pedido.liquidacion),
           total_pagado: totalPagado,
           resta,
         })
-        .eq("id", pedido.id);
+        .eq("id", pedido.id)
+        .select(
+          "id,total_bruto,total_final,anticipo,liquidacion,total_pagado,resta"
+        )
+        .single();
+
+      console.log("PEDIDO ACTUALIZADO:", pedidoActualizado);
 
       if (pedidoError) throw pedidoError;
 
@@ -244,6 +258,13 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
             papel: d.papel || null,
             especificaciones: d.especificaciones || null,
             n_toma: d.n_toma || null,
+
+            subtotal: numero(d.subtotal),
+
+            precio_unitario:
+              numero(d.cantidad) > 0
+                ? numero(d.subtotal) / numero(d.cantidad)
+                : numero(d.subtotal),
           })
           .eq("id", d.id);
 
@@ -251,10 +272,13 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
       }
 
       alert("Cambios guardados correctamente");
+
       setPedido((prev) =>
         prev
           ? {
               ...prev,
+              total_bruto: totalBruto,
+              total_final: totalFinal,
               total_pagado: totalPagado,
               resta,
             }
@@ -478,6 +502,13 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
                   onChange={(v) => cambiarDetalle(d.id, "cantidad", v)}
                   inputMode="numeric"
                 />
+                <Field
+                  label="Precio renglón"
+                  type="number"
+                  value={String(d.subtotal ?? "")}
+                  onChange={(v) => cambiarDetalle(d.id, "subtotal", v)}
+                  inputMode="decimal"
+                />
 
                 <Field
                   label="Tipo"
@@ -524,6 +555,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
         <button style={styles.cancelBtn} onClick={onBack} disabled={saving}>
           Volver
         </button>
+
         <button
           style={styles.whatsBtn}
           onClick={reenviarWhats}
@@ -863,7 +895,6 @@ const styles: { [key: string]: React.CSSProperties } = {
     justifyContent: "center",
     gap: 8,
   },
-
   ticketBtn: {
     border: "none",
     borderRadius: 16,
