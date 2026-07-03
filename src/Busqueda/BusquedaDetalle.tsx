@@ -26,6 +26,8 @@ type Detalle = {
   papel: string | null;
   especificaciones: string | null;
   n_toma: string | null;
+  subtotal?: number | null;
+  precio_unitario?: number | null;
 };
 
 type Pedido = {
