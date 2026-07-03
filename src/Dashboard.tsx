@@ -843,59 +843,55 @@ const Dashboard = ({ session }: { session: any }) => {
                     <ArrowUpRight size={24} style={styles.entregaBtnArrow} />
                   </motion.button>
                   <div style={styles.adminCardsGrid}>
-                    {(perfilComp?.admin ? accesosAdmin : accesosGenerales).map(
-                      (item, index) => (
-                        <motion.button
-                          key={item.title}
-                          type="button"
-                          onClick={() => setVistaActiva(item.view)}
+                    {(perfilComp?.admin
+                      ? [...accesosGenerales, ...accesosAdmin]
+                      : accesosGenerales
+                    ).map((item, index) => (
+                      <motion.button
+                        key={item.title}
+                        type="button"
+                        onClick={() => setVistaActiva(item.view)}
+                        style={{
+                          ...styles.adminCard,
+                          border: `1px solid ${item.color}18`,
+                        }}
+                        initial={{ opacity: 0, y: 18 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: index * 0.08 }}
+                        whileHover={{
+                          y: -6,
+                          boxShadow: "0 22px 42px rgba(0,0,0,0.06)",
+                        }}
+                        whileTap={{ scale: 0.985 }}
+                      >
+                        <div
                           style={{
-                            ...styles.adminCard,
-                            border: `1px solid ${item.color}18`,
+                            ...styles.adminCardIconBox,
+                            backgroundColor: `${item.color}12`,
                           }}
-                          initial={{ opacity: 0, y: 18 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          transition={{ delay: index * 0.08 }}
-                          whileHover={{
-                            y: -6,
-                            boxShadow: "0 22px 42px rgba(0,0,0,0.06)",
-                          }}
-                          whileTap={{ scale: 0.985 }}
                         >
-                          <div
-                            style={{
-                              ...styles.adminCardIconBox,
-                              backgroundColor: `${item.color}12`,
-                            }}
-                          >
-                            {React.cloneElement(item.icon, {
-                              color: item.color,
-                            })}
+                          {React.cloneElement(item.icon, {
+                            color: item.color,
+                          })}
+                        </div>
+
+                        <div style={styles.adminCardBody}>
+                          <div style={styles.adminCardTitle}>{item.title}</div>
+                          <div style={styles.adminCardSubtitle}>
+                            {item.subtitle}
                           </div>
+                        </div>
 
-                          <div style={styles.adminCardBody}>
-                            <div style={styles.adminCardTitle}>
-                              {item.title}
-                            </div>
-                            <div style={styles.adminCardSubtitle}>
-                              {item.subtitle}
-                            </div>
+                        {perfilComp?.admin && (
+                          <div style={styles.adminCardPill}>
+                            <Lock size={12} />
+                            <span>Admin</span>
                           </div>
+                        )}
 
-                          {perfilComp?.admin && (
-                            <div style={styles.adminCardPill}>
-                              <Lock size={12} />
-                              <span>Admin</span>
-                            </div>
-                          )}
-
-                          <ArrowUpRight
-                            size={18}
-                            style={styles.adminCardArrow}
-                          />
-                        </motion.button>
-                      )
-                    )}
+                        <ArrowUpRight size={18} style={styles.adminCardArrow} />
+                      </motion.button>
+                    ))}
                   </div>
                 </div>
               </section>
