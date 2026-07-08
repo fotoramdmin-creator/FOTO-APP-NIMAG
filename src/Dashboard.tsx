@@ -17,6 +17,7 @@ import RecadosPanel from "./Recados/RecadosPanel";
 import ConfigPrecios from "./Configuracion/ConfigPrecios";
 import ConfigUsuarios from "./Configuracion/ConfigUsuarios";
 import ConfigAccesos from "./Configuracion/ConfigAccesos";
+import ConfigCuentasTransferencia from "./Configuracion/ConfigCuentasTransferencia";
 import { supabase } from "./supabaseClient";
 import EditarPedido from "./Editar/EditarPedido";
 import { motion, AnimatePresence } from "framer-motion";
@@ -38,6 +39,7 @@ import {
   Send,
   Settings,
   Users,
+  Landmark,
   KeyRound,
   Search,
 } from "lucide-react";
@@ -157,6 +159,13 @@ const ConfiguracionHome = ({
       subtitle: "Contraseñas y recuperación",
       color: "#8b6f47",
       view: "Config Accesos",
+    },
+    {
+      icon: <Landmark size={26} />,
+      title: "Cuentas transferencia",
+      subtitle: "Activar, desactivar y ordenar cuentas",
+      color: "#2f5d50",
+      view: "Config Cuentas Transferencia",
     },
   ];
 
@@ -567,6 +576,7 @@ const Dashboard = ({ session }: { session: any }) => {
   };
 
   const confirmarPedido = async () => {
+    if (guardandoPedido) return;
     try {
       setGuardandoPedido(true);
 
@@ -910,19 +920,23 @@ const Dashboard = ({ session }: { session: any }) => {
             <ConfiguracionHome
               onBack={() => setVistaActiva("Inicio")}
               onOpen={(view) => setVistaActiva(view)}
-            />
-          ) : vistaActiva === "Config Precios" ? (
-            <ConfigPrecios onBack={() => setVistaActiva("Configuracion")} />
-          ) : vistaActiva === "Config Usuarios" ? (
-            <ConfigUsuarios onBack={() => setVistaActiva("Configuracion")} />
-          ) : vistaActiva === "Config Accesos" ? (
-            <ConfigAccesos onBack={() => setVistaActiva("Configuracion")} />
-          ) : vistaActiva === "Recados" ? (
-            <RecadosPanel
-              recados={recados}
-              onBack={() => setVistaActiva("Inicio")}
-              onRefresh={cargarRecados}
-            />
+              />
+            ) : vistaActiva === "Config Precios" ? (
+              <ConfigPrecios onBack={() => setVistaActiva("Configuracion")} />
+            ) : vistaActiva === "Config Usuarios" ? (
+              <ConfigUsuarios onBack={() => setVistaActiva("Configuracion")} />
+            ) : vistaActiva === "Config Accesos" ? (
+              <ConfigAccesos onBack={() => setVistaActiva("Configuracion")} />
+            ) : vistaActiva === "Config Cuentas Transferencia" ? (
+              <ConfigCuentasTransferencia
+                onBack={() => setVistaActiva("Configuracion")}
+              />
+            ) : vistaActiva === "Recados" ? (
+              <RecadosPanel
+                recados={recados}
+                onBack={() => setVistaActiva("Inicio")}
+                onRefresh={cargarRecados}
+              />
           ) : vistaActiva === "Toma Pedidos" ? (
             <Vista1
               perfil={perfilComp}

@@ -30,6 +30,23 @@ type Detalle = {
   precio_unitario?: number | null;
 };
 
+type Pago = {
+  id: string;
+  pedido_id: string | null;
+  fecha_pago: string | null;
+  monto: number | null;
+  tipo: "A_CUENTA" | "LIQUIDACION" | string | null;
+  metodo_pago?: "EFECTIVO" | "TRANSFERENCIA" | "TARJETA" | string | null;
+  cuenta_destino?: string | null;
+};
+
+type CuentaTransferencia = {
+  id: string;
+  nombre: string;
+  activa: boolean | null;
+  orden: number | null;
+};
+
 type Pedido = {
   id: string;
   cliente_nombre: string | null;
@@ -70,6 +87,22 @@ const THEME = {
 export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [detalles, setDetalles] = useState<Detalle[]>([]);
+  const [pagos, setPagos] = useState<Pago[]>([]);
+  const [cuentasTransferencia, setCuentasTransferencia] = useState<
+    CuentaTransferencia[]
+  >([]);
+
+  const [pagoEditando, setPagoEditando] = useState<Pago | null>(null);
+  const [montoPagoEditando, setMontoPagoEditando] = useState("");
+  const [tipoPagoEditando, setTipoPagoEditando] = useState<
+    "A_CUENTA" | "LIQUIDACION"
+  >("A_CUENTA");
+  const [metodoPagoEditando, setMetodoPagoEditando] = useState<
+    "EFECTIVO" | "TRANSFERENCIA" | "TARJETA"
+  >("EFECTIVO");
+  const [cuentaDestinoEditando, setCuentaDestinoEditando] = useState("");
+
+  const [guardandoPago, setGuardandoPago] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -77,6 +110,21 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
     if (valor === "" || valor === null || valor === undefined) return 0;
     const n = Number(valor);
     return Number.isNaN(n) ? 0 : n;
+  };
+
+  const cargarCuentasTransferencia = async () => {
+    const { data, error } = await supabase
+      .from("cuentas_transferencia")
+      .select("id,nombre,activa,orden")
+      .eq("activa", true)
+      .order("orden", { ascending: true });
+
+    if (error) {
+      console.error("Error cargando cuentas_transferencia:", error);
+      return;
+    }
+
+    setCuentasTransferencia((data || []) as CuentaTransferencia[]);
   };
 
   const cargarPedido = async () => {
@@ -122,8 +170,17 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
 
       if (error) throw error;
 
+      const { data: pagosData, error: pagosError } = await supabase
+        .from("pagos")
+        .select("id,pedido_id,fecha_pago,monto,tipo,metodo_pago,cuenta_destino")
+        .eq("pedido_id", pedidoId)
+        .order("fecha_pago", { ascending: true });
+
+      if (pagosError) throw pagosError;
+
       setPedido(data as Pedido);
       setDetalles(((data as Pedido)?.detalles_pedido || []) as Detalle[]);
+      setPagos((Array.isArray(pagosData) ? pagosData : []) as Pago[]);
     } catch (err) {
       console.error("Error cargando detalle:", err);
       alert("No se pudo cargar el pedido");
@@ -133,29 +190,23 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
   };
 
   useEffect(() => {
+    cargarCuentasTransferencia();
+  }, []);
+
+  useEffect(() => {
     if (pedidoId) cargarPedido();
   }, [pedidoId]);
 
   const cambiarPedido = (campo: keyof Pedido, valor: any) => {
     setPedido((prev) => {
       if (!prev) return prev;
-      return {
-        ...prev,
-        [campo]: valor,
-      };
+      return { ...prev, [campo]: valor };
     });
   };
 
   const cambiarDetalle = (id: string, campo: keyof Detalle, valor: any) => {
     setDetalles((prev) =>
-      prev.map((d) =>
-        d.id === id
-          ? {
-              ...d,
-              [campo]: valor,
-            }
-          : d
-      )
+      prev.map((d) => (d.id === id ? { ...d, [campo]: valor } : d))
     );
   };
 
@@ -199,15 +250,93 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
   const reenviarWhats = () => {
     const pedidoActualizado = pedidoParaTicket();
     if (!pedidoActualizado) return;
-
     enviarWhatsApp(pedidoActualizado);
   };
 
   const compartirTicket = async () => {
     const pedidoActualizado = pedidoParaTicket();
     if (!pedidoActualizado) return;
-
     await compartirTicketPdf(pedidoActualizado);
+  };
+
+  const abrirEditarPago = (pago: Pago) => {
+    const metodoSeguro =
+      pago.metodo_pago === "TRANSFERENCIA" || pago.metodo_pago === "TARJETA"
+        ? pago.metodo_pago
+        : "EFECTIVO";
+
+    setPagoEditando(pago);
+    setMontoPagoEditando(String(pago.monto ?? ""));
+    setTipoPagoEditando(
+      pago.tipo === "LIQUIDACION" ? "LIQUIDACION" : "A_CUENTA"
+    );
+    setMetodoPagoEditando(metodoSeguro);
+    setCuentaDestinoEditando(
+      metodoSeguro === "TRANSFERENCIA" ? pago.cuenta_destino || "" : ""
+    );
+  };
+
+  const cerrarEditarPago = () => {
+    setPagoEditando(null);
+    setMontoPagoEditando("");
+    setTipoPagoEditando("A_CUENTA");
+    setMetodoPagoEditando("EFECTIVO");
+    setCuentaDestinoEditando("");
+  };
+
+  const guardarEdicionPago = async () => {
+    if (!pagoEditando) return;
+
+    const montoNuevo = numero(montoPagoEditando);
+
+    if (montoNuevo <= 0) {
+      alert("El monto del pago debe ser mayor a 0");
+      return;
+    }
+
+    if (metodoPagoEditando === "TRANSFERENCIA" && !cuentaDestinoEditando) {
+      alert("Selecciona la cuenta destino de la transferencia");
+      return;
+    }
+
+    try {
+      setGuardandoPago(true);
+
+      const cuentaDestinoFinal =
+        metodoPagoEditando === "TRANSFERENCIA"
+          ? cuentaDestinoEditando
+          : null;
+
+      const { error } = await supabase
+        .from("pagos")
+        .update({
+          monto: montoNuevo,
+          tipo: tipoPagoEditando,
+          metodo_pago: metodoPagoEditando,
+          cuenta_destino: cuentaDestinoFinal,
+        })
+        .eq("id", pagoEditando.id);
+
+      if (error) throw error;
+
+      const { error: rpcError } = await supabase.rpc(
+        "recalcular_pedido_totales",
+        {
+          p_pid: pagoEditando.pedido_id || pedidoId,
+        }
+      );
+
+      if (rpcError) throw rpcError;
+
+      cerrarEditarPago();
+      await cargarPedido();
+      if (onSaved) onSaved();
+    } catch (err: any) {
+      console.error("Error editando pago:", err);
+      alert("No se pudo editar el pago: " + (err?.message || "desconocido"));
+    } finally {
+      setGuardandoPago(false);
+    }
   };
 
   const guardarCambios = async () => {
@@ -216,12 +345,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
     try {
       setSaving(true);
 
-      const totalBruto = numero(pedido.total_bruto);
-      const totalFinal = numero(pedido.total_final);
-      const totalPagado = totalPagadoCalculado;
-      const resta = totalFinal - totalPagado;
-
-      const { data: pedidoActualizado, error: pedidoError } = await supabase
+      const { error: pedidoError } = await supabase
         .from("pedidos")
         .update({
           cliente_nombre: pedido.cliente_nombre || null,
@@ -229,64 +353,45 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
           fecha_entrega: pedido.fecha_entrega || null,
           horario_entrega: pedido.horario_entrega || null,
           urgente: !!pedido.urgente,
-          pagado: !!pedido.pagado,
           entregado: !!pedido.entregado,
-          total_bruto: totalBruto,
-          total_final: totalFinal,
-          anticipo: numero(pedido.anticipo),
-          liquidacion: numero(pedido.liquidacion),
-          total_pagado: totalPagado,
-          resta,
         })
-        .eq("id", pedido.id)
-        .select(
-          "id,total_bruto,total_final,anticipo,liquidacion,total_pagado,resta"
-        )
-        .single();
-
-      console.log("PEDIDO ACTUALIZADO:", pedidoActualizado);
+        .eq("id", pedido.id);
 
       if (pedidoError) throw pedidoError;
 
       for (const d of detalles) {
+        const cantidad = numero(d.cantidad);
+        const subtotal = numero(d.subtotal);
+
         const { error: detalleError } = await supabase
           .from("detalles_pedido")
           .update({
             tamano: d.tamano || null,
-            cantidad: numero(d.cantidad),
+            cantidad,
             tipo: d.tipo || null,
             papel: d.papel || null,
             especificaciones: d.especificaciones || null,
             n_toma: d.n_toma || null,
-
-            subtotal: numero(d.subtotal),
-
-            precio_unitario:
-              numero(d.cantidad) > 0
-                ? numero(d.subtotal) / numero(d.cantidad)
-                : numero(d.subtotal),
+            subtotal,
+            precio_unitario: cantidad > 0 ? subtotal / cantidad : subtotal,
           })
           .eq("id", d.id);
 
         if (detalleError) throw detalleError;
       }
 
-      alert("Cambios guardados correctamente");
-
-      setPedido((prev) =>
-        prev
-          ? {
-              ...prev,
-              total_bruto: totalBruto,
-              total_final: totalFinal,
-              total_pagado: totalPagado,
-              resta,
-            }
-          : prev
+      const { error: rpcError } = await supabase.rpc(
+        "recalcular_pedido_totales",
+        {
+          p_pid: pedido.id,
+        }
       );
 
-      if (onSaved) onSaved();
+      if (rpcError) throw rpcError;
 
+      alert("Cambios guardados correctamente");
+
+      if (onSaved) onSaved();
       await cargarPedido();
     } catch (err: any) {
       console.error("Error guardando cambios:", err);
@@ -377,31 +482,39 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
 
           <Field
             label="Horario entrega"
-            type="time"
+            type={pedido.urgente ? "text" : "time"}
             value={pedido.horario_entrega || ""}
             onChange={(v) => cambiarPedido("horario_entrega", v)}
           />
         </div>
 
         <div style={styles.switchGrid}>
-          <SwitchBox
-            label="Urgente"
-            checked={!!pedido.urgente}
-            onChange={(v) => cambiarPedido("urgente", v)}
-          />
+  <SwitchBox
+    label="Urgente"
+    checked={!!pedido.urgente}
+    onChange={(v) => {
+      cambiarPedido("urgente", v);
 
-          <SwitchBox
-            label="Pagado"
-            checked={!!pedido.pagado}
-            onChange={(v) => cambiarPedido("pagado", v)}
-          />
+      if (v) {
+        cambiarPedido("horario_entrega", "15 A 25 MINUTOS");
+      } else {
+        cambiarPedido("horario_entrega", "");
+      }
+    }}
+  />
 
-          <SwitchBox
-            label="Entregado"
-            checked={!!pedido.entregado}
-            onChange={(v) => cambiarPedido("entregado", v)}
-          />
-        </div>
+  <SwitchBox
+    label="Pagado"
+    checked={!!pedido.pagado}
+    onChange={() => {}}
+  />
+
+  <SwitchBox
+    label="Entregado"
+    checked={!!pedido.entregado}
+    onChange={(v) => cambiarPedido("entregado", v)}
+  />
+</div>
       </section>
 
       <section style={styles.section}>
@@ -411,36 +524,21 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
         </div>
 
         <div style={styles.grid}>
-          <Field
+          <ReadOnlyField
             label="Total bruto"
-            type="number"
-            value={String(pedido.total_bruto ?? "")}
-            onChange={(v) => cambiarPedido("total_bruto", v)}
-            inputMode="decimal"
+            value={`$${numero(pedido.total_bruto)}`}
           />
-
-          <Field
+          <ReadOnlyField
             label="Total final"
-            type="number"
-            value={String(pedido.total_final ?? "")}
-            onChange={(v) => cambiarPedido("total_final", v)}
-            inputMode="decimal"
+            value={`$${numero(pedido.total_final)}`}
           />
-
-          <Field
+          <ReadOnlyField
             label="Anticipo"
-            type="number"
-            value={String(pedido.anticipo ?? "")}
-            onChange={(v) => cambiarPedido("anticipo", v)}
-            inputMode="decimal"
+            value={`$${numero(pedido.anticipo)}`}
           />
-
-          <Field
+          <ReadOnlyField
             label="Liquidación"
-            type="number"
-            value={String(pedido.liquidacion ?? "")}
-            onChange={(v) => cambiarPedido("liquidacion", v)}
-            inputMode="decimal"
+            value={`$${numero(pedido.liquidacion)}`}
           />
         </div>
 
@@ -462,6 +560,46 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
             </strong>
           </div>
         </div>
+      </section>
+
+      <section style={styles.section}>
+        <div style={styles.sectionTitle}>
+          <Wallet size={18} color={THEME.gold} />
+          Pagos registrados
+        </div>
+
+        {pagos.length === 0 ? (
+          <p style={styles.emptyText}>
+            Este pedido todavía no tiene pagos registrados.
+          </p>
+        ) : (
+          <div style={styles.detallesList}>
+            {pagos.map((pago) => (
+              <div key={pago.id} style={styles.detalleCard}>
+                <div style={styles.detalleHeader}>
+                  <span style={styles.detalleTitle}>
+                    {pago.tipo === "A_CUENTA" ? "A CUENTA" : "LIQUIDACIÓN"}
+                  </span>
+
+                  <strong>${numero(pago.monto)}</strong>
+                </div>
+
+                <p style={styles.pagoMeta}>
+                  {pago.metodo_pago || "SIN MÉTODO"}
+                  {pago.cuenta_destino ? ` · ${pago.cuenta_destino}` : ""}
+                </p>
+
+                <button
+                  type="button"
+                  style={styles.editPagoBtn}
+                  onClick={() => abrirEditarPago(pago)}
+                >
+                  Editar pago
+                </button>
+              </div>
+            ))}
+          </div>
+        )}
       </section>
 
       <section style={styles.section}>
@@ -502,6 +640,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
                   onChange={(v) => cambiarDetalle(d.id, "cantidad", v)}
                   inputMode="numeric"
                 />
+
                 <Field
                   label="Precio renglón"
                   type="number"
@@ -583,6 +722,130 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
           {saving ? "Guardando..." : "Guardar cambios"}
         </button>
       </div>
+
+      {pagoEditando && (
+        <div style={styles.modalOverlay}>
+          <div style={styles.modalPago}>
+            <h2 style={styles.modalTitle}>Editar pago</h2>
+
+            <p style={styles.pagoMeta}>
+              Actual:
+              {" "}
+              {pagoEditando.metodo_pago || "SIN MÉTODO"}
+              {pagoEditando.cuenta_destino
+                ? ` · ${pagoEditando.cuenta_destino}`
+                : ""}
+            </p>
+
+            <div style={styles.tipoPagoEditGrid}>
+              <button
+                type="button"
+                style={{
+                  ...styles.tipoPagoEditBtn,
+                  background:
+                    tipoPagoEditando === "A_CUENTA" ? THEME.black : THEME.white,
+                  color:
+                    tipoPagoEditando === "A_CUENTA" ? THEME.white : THEME.black,
+                }}
+                onClick={() => setTipoPagoEditando("A_CUENTA")}
+              >
+                A cuenta
+              </button>
+
+              <button
+                type="button"
+                style={{
+                  ...styles.tipoPagoEditBtn,
+                  background:
+                    tipoPagoEditando === "LIQUIDACION"
+                      ? THEME.black
+                      : THEME.white,
+                  color:
+                    tipoPagoEditando === "LIQUIDACION"
+                      ? THEME.white
+                      : THEME.black,
+                }}
+                onClick={() => setTipoPagoEditando("LIQUIDACION")}
+              >
+                Liquidación
+              </button>
+            </div>
+
+            <label style={styles.label}>Monto</label>
+            <input
+              type="number"
+              inputMode="decimal"
+              value={montoPagoEditando}
+              onChange={(e) => setMontoPagoEditando(e.target.value)}
+              style={styles.input}
+            />
+
+            <div style={{ marginTop: 14 }}>
+              <label style={styles.label}>Método de pago</label>
+              <select
+                value={metodoPagoEditando}
+                onChange={(e) => {
+                  const nuevoMetodo = e.target.value as
+                    | "EFECTIVO"
+                    | "TRANSFERENCIA"
+                    | "TARJETA";
+
+                  setMetodoPagoEditando(nuevoMetodo);
+
+                  if (nuevoMetodo !== "TRANSFERENCIA") {
+                    setCuentaDestinoEditando("");
+                  }
+                }}
+                style={styles.input}
+              >
+                <option value="EFECTIVO">EFECTIVO</option>
+                <option value="TRANSFERENCIA">TRANSFERENCIA</option>
+                <option value="TARJETA">TARJETA</option>
+              </select>
+            </div>
+
+            {metodoPagoEditando === "TRANSFERENCIA" && (
+              <div style={{ marginTop: 14 }}>
+                <label style={styles.label}>Cuenta destino</label>
+                <select
+                  value={cuentaDestinoEditando}
+                  onChange={(e) => setCuentaDestinoEditando(e.target.value)}
+                  style={styles.input}
+                >
+                  <option value="">Selecciona cuenta</option>
+
+                  {cuentasTransferencia.map((cuenta) => (
+                    <option key={cuenta.id} value={cuenta.nombre}>
+                      {cuenta.nombre}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            )}
+
+            <div style={styles.modalActions}>
+              <button
+                type="button"
+                style={styles.cancelBtn}
+                onClick={cerrarEditarPago}
+                disabled={guardandoPago}
+              >
+                Cancelar
+              </button>
+
+              <button
+                type="button"
+                style={styles.saveBtn}
+                onClick={guardarEdicionPago}
+                disabled={guardandoPago}
+              >
+                <Save size={18} />
+                {guardandoPago ? "Guardando..." : "Guardar pago"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -610,6 +873,15 @@ function Field({
         onChange={(e) => onChange(e.target.value)}
         style={styles.input}
       />
+    </div>
+  );
+}
+
+function ReadOnlyField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <label style={styles.label}>{label}</label>
+      <div style={styles.readOnlyInput}>{value}</div>
     </div>
   );
 }
@@ -767,6 +1039,17 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: THEME.black,
     outline: "none",
   },
+  readOnlyInput: {
+    width: "100%",
+    boxSizing: "border-box",
+    border: "1px solid rgba(0,0,0,0.08)",
+    background: "#f1eee7",
+    borderRadius: 14,
+    padding: "13px 14px",
+    fontSize: 16,
+    fontWeight: 900,
+    color: THEME.black,
+  },
   textarea: {
     width: "100%",
     minHeight: 90,
@@ -907,5 +1190,69 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     justifyContent: "center",
     gap: 8,
+  },
+  emptyText: {
+    margin: 0,
+    color: THEME.soft,
+    fontWeight: 800,
+  },
+  pagoMeta: {
+    margin: 0,
+    color: THEME.soft,
+    fontSize: 13,
+    fontWeight: 800,
+  },
+  editPagoBtn: {
+    marginTop: 10,
+    border: "none",
+    borderRadius: 12,
+    padding: "10px 12px",
+    background: THEME.black,
+    color: THEME.white,
+    fontWeight: 900,
+    cursor: "pointer",
+  },
+  modalOverlay: {
+    position: "fixed",
+    inset: 0,
+    background: "rgba(0,0,0,0.45)",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    zIndex: 9999,
+    padding: 20,
+  },
+  modalPago: {
+    width: "100%",
+    maxWidth: 420,
+    background: THEME.card,
+    borderRadius: 24,
+    padding: 24,
+    boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
+  },
+  modalTitle: {
+    margin: "0 0 18px",
+    fontSize: 24,
+    fontWeight: 900,
+    color: THEME.black,
+  },
+  modalActions: {
+    display: "flex",
+    justifyContent: "flex-end",
+    gap: 12,
+    marginTop: 20,
+  },
+  tipoPagoEditGrid: {
+    display: "grid",
+    gridTemplateColumns: "1fr 1fr",
+    gap: 10,
+    margin: "18px 0",
+  },
+  tipoPagoEditBtn: {
+    border: "1px solid rgba(0,0,0,0.12)",
+    borderRadius: 14,
+    padding: "12px 10px",
+    fontWeight: 900,
+    cursor: "pointer",
   },
 };

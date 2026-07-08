@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
 import {
@@ -6,12 +6,18 @@ import {
   Wallet,
   BadgeDollarSign,
   Receipt,
+  CreditCard,
   Banknote,
   CheckCircle2,
   Sparkles,
 } from "lucide-react";
 
 type TipoPago = "A_CUENTA" | "LIQUIDACION";
+type MetodoPago = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA";
+type CuentaTransferencia = {
+  id: string;
+  nombre: string;
+};
 
 type Props = {
   pedidoId: string;
@@ -51,6 +57,11 @@ function Vista4Pago({
   onFinalizado,
 }: Props) {
   const [tipoPago, setTipoPago] = useState<TipoPago>("A_CUENTA");
+  const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
+  const [cuentaDestino, setCuentaDestino] = useState("");
+  const [cuentasTransferencia, setCuentasTransferencia] = useState<
+  CuentaTransferencia[]
+>([]);
   const [montoRegistrar, setMontoRegistrar] = useState("");
   const [conCuantoPaga, setConCuantoPaga] = useState("");
   const [guardando, setGuardando] = useState(false);
@@ -67,6 +78,21 @@ function Vista4Pago({
   const cambio = useMemo(() => {
     return conCuantoPagaNum - montoRealARegistrar;
   }, [conCuantoPagaNum, montoRealARegistrar]);
+  useEffect(() => {
+  const cargarCuentasTransferencia = async () => {
+    const { data, error } = await supabase
+      .from("cuentas_transferencia")
+      .select("id, nombre")
+      .eq("activa", true)
+      .order("orden", { ascending: true });
+
+    if (!error) {
+      setCuentasTransferencia(data || []);
+    }
+  };
+
+  cargarCuentasTransferencia();
+}, []);
 
   const formatoMoneda = (valor: number) =>
     new Intl.NumberFormat("es-MX", {
@@ -103,6 +129,10 @@ function Vista4Pago({
       setError("El monto recibido es insuficiente.");
       return;
     }
+    if (metodoPago === "TRANSFERENCIA" && !cuentaDestino) {
+      setError("Selecciona la cuenta de destino.");
+      return;
+    }
 
     try {
       setGuardando(true);
@@ -111,6 +141,8 @@ function Vista4Pago({
         pedido_id: pedidoId,
         fecha_pago: new Date().toISOString(),
         monto: montoRealARegistrar,
+        metodo_pago: metodoPago,
+        cuenta_destino: metodoPago === "TRANSFERENCIA" ? cuentaDestino : null,
         tipo: tipoPago,
         nota:
           tipoPago === "A_CUENTA"
@@ -256,6 +288,105 @@ function Vista4Pago({
               );
             })}
           </div>
+          <h3 style={{ ...styles.sectionLabel, marginTop: 24 }}>
+            MÉTODO DE PAGO
+          </h3>
+
+          <div style={styles.flexGrid}>
+            {[
+              {
+                id: "EFECTIVO",
+                label: "Efectivo",
+                icon: Banknote,
+                color: "#2e7d32",
+              },
+              {
+                id: "TRANSFERENCIA",
+                label: "Transferencia",
+                icon: Receipt,
+                color: "#1565c0",
+              },
+              {
+                id: "TARJETA",
+                label: "Tarjeta",
+                icon: CreditCard,
+                color: "#7b1fa2",
+              },
+            ].map((opt) => {
+              const active = metodoPago === opt.id;
+
+              return (
+                <button
+                  key={opt.id}
+                  type="button"
+                  onClick={() => {
+                    setMetodoPago(opt.id as MetodoPago);
+                    if (opt.id !== "TRANSFERENCIA") setCuentaDestino("");
+                    limpiarError();
+                  }}
+                  style={{
+                    ...styles.optionBtn,
+                    borderColor: active ? opt.color : "rgba(0,0,0,0.1)",
+                    background: active ? "#fff" : "transparent",
+                  }}
+                >
+                  <div
+                    style={{
+                      ...styles.optIcon,
+                      background: active ? opt.color : "#999",
+                    }}
+                  >
+                    <opt.icon size={18} color="#fff" />
+                  </div>
+
+                  <span
+                    style={{
+                      fontWeight: 800,
+                      color: active ? opt.color : THEME.textSoft,
+                    }}
+                  >
+                    {opt.label}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+          {metodoPago === "TRANSFERENCIA" && (
+            <div style={{ marginTop: 18 }}>
+              <h3 style={styles.sectionLabel}>¿A QUIÉN TRANSFIRIERON?</h3>
+
+              <div style={styles.flexGrid}>
+               {cuentasTransferencia.map((cuenta) => (
+                  <button
+                    key={cuenta.id}
+                    type="button"
+                    onClick={() => setCuentaDestino(cuenta.nombre)}
+                    style={{
+                      ...styles.optionBtn,
+                      borderColor:
+                        cuentaDestino === cuenta.nombre
+                          ? THEME.gold
+                          : "rgba(0,0,0,0.1)",
+                      background:
+                        cuentaDestino === cuenta ? "#fff" : "transparent",
+                    }}
+                  >
+                    <span
+                      style={{
+                        fontWeight: 900,
+                        color:
+                          cuentaDestino === cuenta
+                            ? THEME.gold
+                            : THEME.textSoft,
+                      }}
+                    >
+                      {cuenta.nombre}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
         </section>
 
         <div style={styles.formGrid}>
