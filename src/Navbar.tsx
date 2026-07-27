@@ -28,6 +28,7 @@ const Navbar = ({
   const [anchoPantalla, setAnchoPantalla] = useState(window.innerWidth);
   const isMobile = anchoPantalla < 768;
   const isTablet = anchoPantalla >= 768 && anchoPantalla < 1180;
+  const [badgeOrdenCurso, setBadgeOrdenCurso] = useState(0);
   const [badgeUrgentes, setBadgeUrgentes] = useState(0);
   const [badgeHoy, setBadgeHoy] = useState(0);
 
@@ -62,52 +63,68 @@ const Navbar = ({
     return `${year}-${month}-${day}`;
   };
 
-  const cargarBadgesProduccion = useCallback(async () => {
+    const cargarBadgesNavbar = useCallback(async () => {
     try {
       const hoy = obtenerFechaHoyLocal();
 
-      const { data, error } = await supabase
-        .from("pedidos")
-        .select("id, urgente, fecha_entrega")
-        .eq("p_2listo", true)
-        .or("p3_concluido.is.null,p3_concluido.eq.false");
+      const [
+        { data: ordenCursoData, error: ordenCursoError },
+        { data: produccionData, error: produccionError },
+      ] = await Promise.all([
+        supabase
+          .from("pedidos")
+          .select("id")
+          .or("p_2listo.is.null,p_2listo.eq.false"),
 
-      if (error) throw error;
+        supabase
+          .from("pedidos")
+          .select("id, urgente, fecha_entrega")
+          .eq("p_2listo", true)
+          .or("p3_concluido.is.null,p3_concluido.eq.false"),
+      ]);
 
-      const pedidos = data || [];
+      if (ordenCursoError) throw ordenCursoError;
+      if (produccionError) throw produccionError;
 
-      const urgentes = pedidos.filter((p: any) => p.urgente === true).length;
+      const pedidosOrdenCurso = ordenCursoData || [];
+      const pedidosProduccion = produccionData || [];
 
-      const hoyCount = pedidos.filter(
+      const urgentes = pedidosProduccion.filter(
+        (p: any) => p.urgente === true
+      ).length;
+
+      const hoyCount = pedidosProduccion.filter(
         (p: any) =>
           p.urgente !== true &&
           p.fecha_entrega &&
           String(p.fecha_entrega).slice(0, 10) === hoy
       ).length;
 
+      setBadgeOrdenCurso(pedidosOrdenCurso.length);
       setBadgeUrgentes(urgentes);
       setBadgeHoy(hoyCount);
     } catch (error) {
-      console.error("Error cargando badges de producción:", error);
+      console.error("Error cargando avisos del Navbar:", error);
+      setBadgeOrdenCurso(0);
       setBadgeUrgentes(0);
       setBadgeHoy(0);
     }
   }, []);
 
   useEffect(() => {
-    cargarBadgesProduccion();
+    cargarBadgesNavbar();
 
     const interval = window.setInterval(() => {
-      cargarBadgesProduccion();
+      cargarBadgesNavbar();
     }, 30000);
 
     const channel = supabase
-      .channel("navbar-produccion-badges")
+      .channel("navbar-pedidos-badges")
       .on(
         "postgres_changes",
         { event: "*", schema: "public", table: "pedidos" },
         () => {
-          cargarBadgesProduccion();
+          cargarBadgesNavbar();
         }
       )
       .subscribe();
@@ -116,7 +133,7 @@ const Navbar = ({
       window.clearInterval(interval);
       supabase.removeChannel(channel);
     };
-  }, [cargarBadgesProduccion]);
+  }, [cargarBadgesNavbar]);
 
   const menuItems = [
     { name: "Inicio", view: "Inicio", icon: <Home size={18} /> },
@@ -125,10 +142,11 @@ const Navbar = ({
       view: "Toma Pedidos",
       icon: <Plus size={18} />,
     },
-    {
+     {
       name: "Orden en curso",
       view: "Orden en Curso",
       icon: <Camera size={18} />,
+      badgeOrdenCurso,
     },
     {
       name: "Producción",
@@ -195,7 +213,7 @@ const Navbar = ({
                 }}
               >
                 {menuItems.map((item) => (
-                  <motion.button
+                                 <motion.button
                     key={item.name}
                     onClick={() => setVista(item.view)}
                     style={{
@@ -203,6 +221,39 @@ const Navbar = ({
                       padding: isTablet ? "10px 12px" : "12px 18px",
                       fontSize: isTablet ? "11px" : "12px",
                       letterSpacing: isTablet ? "0.8px" : "1.5px",
+                      background:
+                        item.view === "Orden en Curso" &&
+                        (item.badgeOrdenCurso ?? 0) > 0
+                          ? "rgba(234, 179, 8, 0.16)"
+                          : "none",
+                      border:
+                        item.view === "Orden en Curso" &&
+                        (item.badgeOrdenCurso ?? 0) > 0
+                          ? "1px solid rgba(234, 179, 8, 0.75)"
+                          : "1px solid transparent",
+                    }}
+                    animate={
+                      item.view === "Orden en Curso" &&
+                      (item.badgeOrdenCurso ?? 0) > 0
+                        ? {
+                            boxShadow: [
+                              "0 0 0 0 rgba(234,179,8,0.10)",
+                              "0 0 0 7px rgba(234,179,8,0.12)",
+                              "0 0 0 0 rgba(234,179,8,0.10)",
+                            ],
+                          }
+                        : {
+                            boxShadow: "0 0 0 0 rgba(234,179,8,0)",
+                          }
+                    }
+                    transition={{
+                      duration: 1.8,
+                      repeat:
+                        item.view === "Orden en Curso" &&
+                        (item.badgeOrdenCurso ?? 0) > 0
+                          ? Infinity
+                          : 0,
+                      ease: "easeInOut",
                     }}
                     whileHover={{
                       backgroundColor: "rgba(255,255,255,0.08)",
@@ -212,6 +263,12 @@ const Navbar = ({
                   >
                     <span style={styles.iconWrapper}>{item.icon}</span>
                     <span>{item.name}</span>
+                                        {item.view === "Orden en Curso" &&
+                    (item.badgeOrdenCurso ?? 0) > 0 ? (
+                      <span style={styles.badgeOrdenDesktop}>
+                        {item.badgeOrdenCurso}
+                      </span>
+                    ) : null}
 
                     {item.view === "Producción" &&
                     ((item.badgeUrgentes ?? 0) > 0 ||
@@ -269,13 +326,47 @@ const Navbar = ({
               </div>
             )}
 
-            {isMobile && (
+                     {isMobile && (
               <motion.button
                 whileTap={{ scale: 0.8 }}
-                style={styles.mobileBtn}
+                animate={
+                  badgeOrdenCurso > 0
+                    ? {
+                        boxShadow: [
+                          "0 0 0 0 rgba(234,179,8,0.10)",
+                          "0 0 0 9px rgba(234,179,8,0.16)",
+                          "0 0 0 0 rgba(234,179,8,0.10)",
+                        ],
+                      }
+                    : {
+                        boxShadow: "0 0 0 0 rgba(234,179,8,0)",
+                      }
+                }
+                transition={{
+                  duration: 1.8,
+                  repeat: badgeOrdenCurso > 0 ? Infinity : 0,
+                  ease: "easeInOut",
+                }}
+                style={{
+                  ...styles.mobileBtn,
+                  background:
+                    badgeOrdenCurso > 0
+                      ? "rgba(234,179,8,0.18)"
+                      : "transparent",
+                  border:
+                    badgeOrdenCurso > 0
+                      ? "2px solid #eab308"
+                      : "2px solid transparent",
+                }}
                 onClick={() => setIsOpen(!isOpen)}
               >
-                {isOpen ? <X size={32} /> : <Menu size={32} />}
+                {isOpen ? <X size={30} /> : <Menu size={30} />}
+
+                {badgeOrdenCurso > 0 ? (
+                  <span style={styles.badgeOrdenHamburguesa}>
+                    {badgeOrdenCurso}
+                  </span>
+                ) : null}
               </motion.button>
             )}
           </div>
@@ -317,7 +408,19 @@ const Navbar = ({
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.1 }}
-                      style={styles.mobileLink}
+                                           style={{
+                        ...styles.mobileLink,
+                        backgroundColor:
+                          item.view === "Orden en Curso" &&
+                          (item.badgeOrdenCurso ?? 0) > 0
+                            ? "rgba(234,179,8,0.16)"
+                            : "rgba(255,255,255,0.03)",
+                        border:
+                          item.view === "Orden en Curso" &&
+                          (item.badgeOrdenCurso ?? 0) > 0
+                            ? "1px solid rgba(234,179,8,0.70)"
+                            : "1px solid transparent",
+                      }}
                       onClick={() => {
                         setVista(item.view);
                         setIsOpen(false);
@@ -326,6 +429,12 @@ const Navbar = ({
                       <div style={styles.iconCircleMobile}>{item.icon}</div>
 
                       <span style={styles.mobileLinkText}>{item.name}</span>
+                                            {item.view === "Orden en Curso" &&
+                      (item.badgeOrdenCurso ?? 0) > 0 ? (
+                        <span style={styles.badgeOrdenMobile}>
+                          {item.badgeOrdenCurso}
+                        </span>
+                      ) : null}
 
                       {item.view === "Producción" &&
                       ((item.badgeUrgentes ?? 0) > 0 ||
@@ -438,6 +547,20 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     alignItems: "center",
   },
+    badgeOrdenDesktop: {
+    minWidth: "22px",
+    height: "22px",
+    padding: "0 7px",
+    borderRadius: "999px",
+    backgroundColor: "#eab308",
+    color: "#111",
+    fontSize: "11px",
+    fontWeight: 900,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 6px 16px rgba(234,179,8,0.35)",
+  },
   badgesWrapDesktop: {
     display: "inline-flex",
     alignItems: "center",
@@ -543,9 +666,33 @@ const styles: { [key: string]: React.CSSProperties } = {
     border: "none",
     color: "#fff",
     cursor: "pointer",
+    width: "50px",
+    height: "50px",
+    borderRadius: "16px",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
+    position: "relative",
+    overflow: "visible",
+  },
+  badgeOrdenHamburguesa: {
+    position: "absolute",
+    top: "-8px",
+    right: "-8px",
+    minWidth: "23px",
+    height: "23px",
+    padding: "0 6px",
+    borderRadius: "999px",
+    backgroundColor: "#eab308",
+    color: "#111",
+    border: "2px solid #36412e",
+    fontSize: "11px",
+    fontWeight: 900,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 6px 16px rgba(0,0,0,0.28)",
+    boxSizing: "border-box",
   },
   mobileDrawer: {
     position: "fixed",
@@ -625,6 +772,20 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   mobileLinkText: {
     flex: 1,
+  },
+    badgeOrdenMobile: {
+    minWidth: "24px",
+    height: "24px",
+    padding: "0 7px",
+    borderRadius: "999px",
+    backgroundColor: "#eab308",
+    color: "#111",
+    fontSize: "11px",
+    fontWeight: 900,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 6px 16px rgba(234,179,8,0.30)",
   },
   badgesWrapMobile: {
     display: "inline-flex",
