@@ -24,7 +24,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import {
   ArrowUpRight,
   ArrowLeft,
-  PackageCheck,
   Package,
   Wallet,
   ShieldCheck,
@@ -554,15 +553,6 @@ const Dashboard = ({ session }: { session: any }) => {
     },
   ];
 
-  const accesosGenerales: AdminAccess[] = [
-    {
-      icon: <Search size={24} />,
-      title: "Búsqueda",
-      subtitle: "Consultar y editar pedidos",
-      color: "#2f5d50",
-      view: "Busqueda",
-    },
-  ];
   const reiniciarFlujoPedido = () => {
     setDatosCliente({
       cliente_nombre: "",
@@ -593,7 +583,17 @@ const Dashboard = ({ session }: { session: any }) => {
 
       const turnoDia = `A${String((count || 0) + 1).padStart(3, "0")}`;
 
-      const pedidoEsUrgente = carrito.some((item) => item.esUrgente);
+         const pedidoEsUrgente = carrito.some((item) => item.esUrgente);
+
+      const itemConCapturista = carrito.find(
+        (item) => item.usuarioId && item.usuarioNombre
+      );
+
+      const capturistaId =
+        itemConCapturista?.usuarioId || perfilComp?.id || null;
+
+      const capturistaNombre =
+        itemConCapturista?.usuarioNombre || perfilComp?.nombre || null;
 
       const totalBruto = carrito.reduce(
         (acc, item) => acc + Number(item.total || 0),
@@ -621,8 +621,8 @@ const Dashboard = ({ session }: { session: any }) => {
             descuento,
             total_bruto: totalBruto,
             total_final: totalFinal,
-            creado_por: perfilComp?.id || null,
-            creado_por_nombre: perfilComp?.nombre || null,
+            creado_por: capturistaId,
+            creado_por_nombre: capturistaNombre,
             resta: totalFinal,
             pagado: false,
             p3_concluido: false,
@@ -657,7 +657,7 @@ const Dashboard = ({ session }: { session: any }) => {
         retocado: false,
         impreso: false,
         calendario: false,
-        creado_por: perfilComp?.id || null,
+        creado_por: item.usuarioId || capturistaId,
         created_at: ahora,
         updated_at: ahora,
         n_toma: null,
@@ -669,10 +669,10 @@ const Dashboard = ({ session }: { session: any }) => {
 
       if (errorDetalles) throw errorDetalles;
 
-      setPedidoCreado({
+          setPedidoCreado({
         pedidoId: pedidoInsertado.id,
         clienteNombre: datosCliente.cliente_nombre,
-        usuarioId: perfilComp?.id || undefined,
+        usuarioId: capturistaId || undefined,
         totalBruto,
         descuento,
         totalFinal,
@@ -827,10 +827,10 @@ const Dashboard = ({ session }: { session: any }) => {
               <section style={styles.contentSection}>
                 <h2 style={styles.sectionTitle}>Acceso rápido</h2>
 
-                <div style={styles.quickAccessWrap}>
+                              <div style={styles.quickAccessWrap}>
                   <motion.button
                     type="button"
-                    onClick={() => setVistaActiva("Entrega")}
+                    onClick={() => setVistaActiva("Busqueda")}
                     style={styles.entregaBtn}
                     whileHover={{
                       y: -5,
@@ -841,22 +841,23 @@ const Dashboard = ({ session }: { session: any }) => {
                   >
                     <div style={styles.entregaBtnLeft}>
                       <div style={styles.entregaBtnIconBox}>
-                        <PackageCheck size={24} color="#556b2f" />
+                        <Search size={24} color="#556b2f" />
                       </div>
+
                       <div style={styles.entregaBtnTextWrap}>
-                        <span style={styles.entregaBtnTitle}>Entrega</span>
+                        <span style={styles.entregaBtnTitle}>Búsqueda</span>
                         <span style={styles.entregaBtnSubtitle}>
-                          Buscar y entregar pedidos
+                          Consultar y editar pedidos
                         </span>
                       </div>
                     </div>
+
                     <ArrowUpRight size={24} style={styles.entregaBtnArrow} />
                   </motion.button>
+
                   <div style={styles.adminCardsGrid}>
-                    {(perfilComp?.admin
-                      ? [...accesosGenerales, ...accesosAdmin]
-                      : accesosGenerales
-                    ).map((item, index) => (
+                                    {(perfilComp?.admin ? accesosAdmin : []).map(
+                      (item, index) => (
                       <motion.button
                         key={item.title}
                         type="button"

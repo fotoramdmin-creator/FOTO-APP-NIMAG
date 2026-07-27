@@ -10,6 +10,8 @@ import {
   Banknote,
   CheckCircle2,
   Sparkles,
+  Plus,
+  Trash2,
 } from "lucide-react";
 
 type TipoPago = "A_CUENTA" | "LIQUIDACION";
@@ -17,6 +19,32 @@ type MetodoPago = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA";
 type CuentaTransferencia = {
   id: string;
   nombre: string;
+};
+
+type PartePago = {
+  id: string;
+  metodo: MetodoPago;
+  monto: string;
+  cuentaDestino: string;
+};
+
+const crearPartePago = (
+  metodo: MetodoPago = "EFECTIVO",
+  monto = ""
+): PartePago => ({
+  id: `${Date.now()}-${Math.random()}`,
+  metodo,
+  monto,
+  cuentaDestino: "",
+});
+
+const limpiarMontoInput = (valor: string) => {
+  const limpio = valor.replace(/[^0-9.]/g, "");
+  const [enteros, ...decimales] = limpio.split(".");
+
+  if (decimales.length === 0) return enteros;
+
+  return `${enteros}.${decimales.join("").slice(0, 2)}`;
 };
 
 type Props = {
@@ -57,27 +85,93 @@ function Vista4Pago({
   onFinalizado,
 }: Props) {
   const [tipoPago, setTipoPago] = useState<TipoPago>("A_CUENTA");
-  const [metodoPago, setMetodoPago] = useState<MetodoPago>("EFECTIVO");
-  const [cuentaDestino, setCuentaDestino] = useState("");
-  const [cuentasTransferencia, setCuentasTransferencia] = useState<
-  CuentaTransferencia[]
->([]);
-  const [montoRegistrar, setMontoRegistrar] = useState("");
+   const [cuentasTransferencia, setCuentasTransferencia] = useState<
+    CuentaTransferencia[]
+  >([]);
+
+  const [partesPago, setPartesPago] = useState<PartePago[]>(() => [
+    crearPartePago(),
+  ]);
+
   const [conCuantoPaga, setConCuantoPaga] = useState("");
   const [guardando, setGuardando] = useState(false);
   const [error, setError] = useState("");
 
-  const montoRegistrarNum = Number(montoRegistrar || 0);
   const conCuantoPagaNum = Number(conCuantoPaga || 0);
 
-  const montoRealARegistrar = useMemo(() => {
-    if (tipoPago === "LIQUIDACION") return Number(pendiente || 0);
-    return montoRegistrarNum;
-  }, [tipoPago, pendiente, montoRegistrarNum]);
+  const totalDistribuido = useMemo(
+    () =>
+      partesPago.reduce(
+        (total, parte) => total + Number(parte.monto || 0),
+        0
+      ),
+    [partesPago]
+  );
 
-  const cambio = useMemo(() => {
-    return conCuantoPagaNum - montoRealARegistrar;
-  }, [conCuantoPagaNum, montoRealARegistrar]);
+  const totalEfectivo = useMemo(
+    () =>
+      partesPago
+        .filter((parte) => parte.metodo === "EFECTIVO")
+        .reduce(
+          (total, parte) => total + Number(parte.monto || 0),
+          0
+        ),
+    [partesPago]
+  );
+
+  const incluyeEfectivo = partesPago.some(
+    (parte) => parte.metodo === "EFECTIVO"
+  );
+
+    const cambio = incluyeEfectivo
+    ? conCuantoPagaNum - totalEfectivo
+    : 0;
+
+  const saldoDespuesPago = Math.max(
+    Number(pendiente || 0) - totalDistribuido,
+    0
+  );
+
+   const diferenciaLiquidacion =
+    Number(pendiente || 0) - totalDistribuido;
+
+  const montosValidos = partesPago.every((parte) => {
+    const monto = Number(parte.monto || 0);
+    return Number.isFinite(monto) && monto > 0;
+  });
+
+  const transferenciasValidas = partesPago.every(
+    (parte) =>
+      parte.metodo !== "TRANSFERENCIA" ||
+      Boolean(parte.cuentaDestino)
+  );
+
+  const metodosSinDuplicar =
+    new Set(partesPago.map((parte) => parte.metodo)).size ===
+    partesPago.length;
+
+  const totalDentroDelSaldo =
+    totalDistribuido > 0 &&
+    totalDistribuido <= Number(pendiente || 0) + 0.009;
+
+  const tipoPagoValido =
+    tipoPago === "LIQUIDACION"
+      ? Math.abs(diferenciaLiquidacion) <= 0.009
+      : totalDistribuido < Number(pendiente || 0) - 0.009;
+
+  const efectivoValido =
+    !incluyeEfectivo ||
+    (conCuantoPagaNum > 0 &&
+      conCuantoPagaNum + 0.009 >= totalEfectivo);
+
+  const pagoValido =
+    montosValidos &&
+    transferenciasValidas &&
+    metodosSinDuplicar &&
+    totalDentroDelSaldo &&
+    tipoPagoValido &&
+    efectivoValido;
+
   useEffect(() => {
   const cargarCuentasTransferencia = async () => {
     const { data, error } = await supabase
@@ -102,54 +196,168 @@ function Vista4Pago({
 
   const limpiarError = () => setError("");
 
+  const actualizarPartePago = (
+    id: string,
+    cambios: Partial<PartePago>
+  ) => {
+    setPartesPago((prev) =>
+      prev.map((parte) =>
+        parte.id === id ? { ...parte, ...cambios } : parte
+      )
+    );
+    limpiarError();
+  };
+
+  const agregarPartePago = () => {
+    const metodosDisponibles: MetodoPago[] = [
+      "EFECTIVO",
+      "TRANSFERENCIA",
+      "TARJETA",
+    ];
+
+    const metodosUsados = new Set(
+      partesPago.map((parte) => parte.metodo)
+    );
+
+    const siguienteMetodo = metodosDisponibles.find(
+      (metodo) => !metodosUsados.has(metodo)
+    );
+
+    if (!siguienteMetodo) {
+      setError("Ya agregaste todos los métodos disponibles.");
+      return;
+    }
+
+    setPartesPago((prev) => [
+      ...prev,
+      crearPartePago(siguienteMetodo),
+    ]);
+    limpiarError();
+  };
+
+  const eliminarPartePago = (id: string) => {
+    setPartesPago((prev) => {
+      if (prev.length === 1) return prev;
+      return prev.filter((parte) => parte.id !== id);
+    });
+    limpiarError();
+  };
+
   const guardarPago = async () => {
     limpiarError();
 
-    if (tipoPago === "A_CUENTA" && montoRealARegistrar <= 0) {
-      setError("Ingresa un monto válido para registrar.");
+    const partesNormalizadas = partesPago.map((parte) => ({
+      ...parte,
+      montoNumero: Number(parte.monto || 0),
+    }));
+
+    const hayMontoInvalido = partesNormalizadas.some(
+      (parte) =>
+        !Number.isFinite(parte.montoNumero) ||
+        parte.montoNumero <= 0
+    );
+
+    if (hayMontoInvalido) {
+      setError("Todos los métodos deben tener un monto mayor a cero.");
       return;
     }
 
-    if (tipoPago === "A_CUENTA" && montoRealARegistrar > pendiente) {
-      setError("El monto a cuenta no puede ser mayor al pendiente.");
+    const metodosRegistrados = partesNormalizadas.map(
+      (parte) => parte.metodo
+    );
+
+    if (
+      new Set(metodosRegistrados).size !==
+      metodosRegistrados.length
+    ) {
+      setError("No puedes repetir el mismo método de pago.");
       return;
     }
 
-    if (montoRealARegistrar <= 0) {
-      setError("No hay monto válido para registrar.");
+    if (totalDistribuido <= 0) {
+      setError("Ingresa al menos un monto para registrar.");
       return;
     }
 
-    if (conCuantoPagaNum <= 0) {
-      setError("Ingresa el efectivo recibido.");
+     if (totalDistribuido > Number(pendiente || 0) + 0.009) {
+      setError("El total capturado no puede ser mayor al pendiente.");
       return;
     }
 
-    if (conCuantoPagaNum < montoRealARegistrar) {
-      setError("El monto recibido es insuficiente.");
+    if (
+      tipoPago === "A_CUENTA" &&
+      totalDistribuido >= Number(pendiente || 0) - 0.009
+    ) {
+      setError(
+        "Si el pago cubre todo el saldo, selecciona Liquidación."
+      );
       return;
     }
-    if (metodoPago === "TRANSFERENCIA" && !cuentaDestino) {
-      setError("Selecciona la cuenta de destino.");
+
+    if (
+      tipoPago === "LIQUIDACION" &&
+      Math.abs(diferenciaLiquidacion) > 0.009
+    ) {
+      setError(
+        `Falta distribuir ${formatoMoneda(
+          Math.abs(diferenciaLiquidacion)
+        )} para completar la liquidación.`
+      );
       return;
+    }
+
+    const transferenciaSinCuenta = partesNormalizadas.some(
+      (parte) =>
+        parte.metodo === "TRANSFERENCIA" &&
+        !parte.cuentaDestino
+    );
+
+    if (transferenciaSinCuenta) {
+      setError("Selecciona la cuenta destino de cada transferencia.");
+      return;
+    }
+
+    if (incluyeEfectivo) {
+      if (conCuantoPagaNum <= 0) {
+        setError("Ingresa el efectivo recibido.");
+        return;
+      }
+
+      if (conCuantoPagaNum + 0.009 < totalEfectivo) {
+        setError("El efectivo recibido es menor al efectivo aplicado.");
+        return;
+      }
     }
 
     try {
       setGuardando(true);
 
-      const { error } = await supabase.from("pagos").insert({
+      const fechaPago = new Date().toISOString();
+
+      const pagosAInsertar = partesNormalizadas.map((parte) => ({
         pedido_id: pedidoId,
-        fecha_pago: new Date().toISOString(),
-        monto: montoRealARegistrar,
-        metodo_pago: metodoPago,
-        cuenta_destino: metodoPago === "TRANSFERENCIA" ? cuentaDestino : null,
+        fecha_pago: fechaPago,
+        monto: parte.montoNumero,
+        metodo_pago: parte.metodo,
+        cuenta_destino:
+          parte.metodo === "TRANSFERENCIA"
+            ? parte.cuentaDestino
+            : null,
         tipo: tipoPago,
         nota:
-          tipoPago === "A_CUENTA"
-            ? `Pago A_CUENTA. Cliente entregó ${conCuantoPagaNum}`
-            : `Pago LIQUIDACION. Cliente entregó ${conCuantoPagaNum}`,
+          parte.metodo === "EFECTIVO"
+            ? `Pago ${tipoPago}. Efectivo aplicado ${
+                parte.montoNumero
+              }. Cliente entregó ${conCuantoPagaNum}`
+            : `Pago ${tipoPago}. ${parte.metodo} por ${
+                parte.montoNumero
+              }`,
         usuario_id: usuarioId || null,
-      });
+      }));
+
+      const { error } = await supabase
+        .from("pagos")
+        .insert(pagosAInsertar);
 
       if (error) throw error;
 
@@ -257,8 +465,41 @@ function Vista4Pago({
                 <button
                   key={opt.id}
                   type="button"
-                  onClick={() => {
-                    setTipoPago(opt.id as TipoPago);
+                                 onClick={() => {
+                    const nuevoTipo = opt.id as TipoPago;
+
+                    setTipoPago(nuevoTipo);
+                    setConCuantoPaga("");
+
+                    if (
+                      nuevoTipo === "LIQUIDACION" &&
+                      partesPago.length === 1
+                    ) {
+                      setPartesPago((prev) =>
+                        prev.map((parte, index) =>
+                          index === 0
+                            ? {
+                                ...parte,
+                                monto: String(Number(pendiente || 0)),
+                              }
+                            : parte
+                        )
+                      );
+                    }
+
+                    if (
+                      nuevoTipo === "A_CUENTA" &&
+                      partesPago.length === 1
+                    ) {
+                      setPartesPago((prev) =>
+                        prev.map((parte, index) =>
+                          index === 0
+                            ? { ...parte, monto: "" }
+                            : parte
+                        )
+                      );
+                    }
+
                     limpiarError();
                   }}
                   style={{
@@ -288,150 +529,256 @@ function Vista4Pago({
               );
             })}
           </div>
-          <h3 style={{ ...styles.sectionLabel, marginTop: 24 }}>
-            MÉTODO DE PAGO
+                    <h3 style={{ ...styles.sectionLabel, marginTop: 24 }}>
+            DISTRIBUCIÓN DEL PAGO
           </h3>
 
-          <div style={styles.flexGrid}>
-            {[
-              {
-                id: "EFECTIVO",
-                label: "Efectivo",
-                icon: Banknote,
-                color: "#2e7d32",
-              },
-              {
-                id: "TRANSFERENCIA",
-                label: "Transferencia",
-                icon: Receipt,
-                color: "#1565c0",
-              },
-              {
-                id: "TARJETA",
-                label: "Tarjeta",
-                icon: CreditCard,
-                color: "#7b1fa2",
-              },
-            ].map((opt) => {
-              const active = metodoPago === opt.id;
-
-              return (
-                <button
-                  key={opt.id}
-                  type="button"
-                  onClick={() => {
-                    setMetodoPago(opt.id as MetodoPago);
-                    if (opt.id !== "TRANSFERENCIA") setCuentaDestino("");
-                    limpiarError();
-                  }}
-                  style={{
-                    ...styles.optionBtn,
-                    borderColor: active ? opt.color : "rgba(0,0,0,0.1)",
-                    background: active ? "#fff" : "transparent",
-                  }}
-                >
-                  <div
-                    style={{
-                      ...styles.optIcon,
-                      background: active ? opt.color : "#999",
-                    }}
-                  >
-                    <opt.icon size={18} color="#fff" />
+          <div>
+            {partesPago.map((parte, index) => (
+              <div key={parte.id} style={styles.partePagoCard}>
+                <div style={styles.partePagoHeader}>
+                  <div style={styles.partePagoTitle}>
+                    MÉTODO {index + 1}
                   </div>
 
-                  <span
-                    style={{
-                      fontWeight: 800,
-                      color: active ? opt.color : THEME.textSoft,
-                    }}
-                  >
-                    {opt.label}
-                  </span>
-                </button>
-              );
-            })}
-          </div>
-          {metodoPago === "TRANSFERENCIA" && (
-            <div style={{ marginTop: 18 }}>
-              <h3 style={styles.sectionLabel}>¿A QUIÉN TRANSFIRIERON?</h3>
-
-              <div style={styles.flexGrid}>
-               {cuentasTransferencia.map((cuenta) => (
-                  <button
-                    key={cuenta.id}
-                    type="button"
-                    onClick={() => setCuentaDestino(cuenta.nombre)}
-                    style={{
-                      ...styles.optionBtn,
-                      borderColor:
-                        cuentaDestino === cuenta.nombre
-                          ? THEME.gold
-                          : "rgba(0,0,0,0.1)",
-                      background:
-                        cuentaDestino === cuenta ? "#fff" : "transparent",
-                    }}
-                  >
-                    <span
-                      style={{
-                        fontWeight: 900,
-                        color:
-                          cuentaDestino === cuenta
-                            ? THEME.gold
-                            : THEME.textSoft,
-                      }}
+                  {partesPago.length > 1 && (
+                    <button
+                      type="button"
+                      onClick={() => eliminarPartePago(parte.id)}
+                      style={styles.deleteParteBtn}
+                      aria-label={`Eliminar método ${index + 1}`}
                     >
-                      {cuenta.nombre}
-                    </span>
-                  </button>
-                ))}
+                      <Trash2 size={17} />
+                    </button>
+                  )}
+                </div>
+
+                <div style={styles.flexGrid}>
+                  {[
+                    {
+                      id: "EFECTIVO",
+                      label: "Efectivo",
+                      icon: Banknote,
+                      color: "#2e7d32",
+                    },
+                    {
+                      id: "TRANSFERENCIA",
+                      label: "Transferencia",
+                      icon: Receipt,
+                      color: "#1565c0",
+                    },
+                    {
+                      id: "TARJETA",
+                      label: "Tarjeta",
+                      icon: CreditCard,
+                      color: "#7b1fa2",
+                    },
+                                   ].map((opt) => {
+                    const active = parte.metodo === opt.id;
+
+                    const usadoEnOtraParte = partesPago.some(
+                      (otraParte) =>
+                        otraParte.id !== parte.id &&
+                        otraParte.metodo === opt.id
+                    );
+
+                    return (
+                      <button
+                        key={opt.id}
+                        type="button"
+                        disabled={usadoEnOtraParte}
+                        onClick={() =>
+                          actualizarPartePago(parte.id, {
+                            metodo: opt.id as MetodoPago,
+                            cuentaDestino:
+                              opt.id === "TRANSFERENCIA"
+                                ? parte.cuentaDestino
+                                : "",
+                          })
+                        }
+                                             style={{
+                          ...styles.optionBtn,
+                          borderColor: active
+                            ? opt.color
+                            : "rgba(0,0,0,0.1)",
+                          background: active ? "#fff" : "transparent",
+                          opacity: usadoEnOtraParte ? 0.35 : 1,
+                          cursor: usadoEnOtraParte
+                            ? "not-allowed"
+                            : "pointer",
+                        }}
+                      >
+                        <div
+                          style={{
+                            ...styles.optIcon,
+                            background: active ? opt.color : "#999",
+                          }}
+                        >
+                          <opt.icon size={18} color="#fff" />
+                        </div>
+
+                        <span
+                          style={{
+                            fontWeight: 800,
+                            color: active
+                              ? opt.color
+                              : THEME.textSoft,
+                          }}
+                        >
+                          {opt.label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <div style={styles.parteMontoWrap}>
+                  <label style={styles.smallLabel}>
+                    MONTO CON ESTE MÉTODO
+                  </label>
+
+                     <input
+                    type="text"
+                    inputMode="decimal"
+                    style={styles.input}
+                    value={parte.monto}
+                    onChange={(e) =>
+                      actualizarPartePago(parte.id, {
+                        monto: limpiarMontoInput(e.target.value),
+                      })
+                    }
+                    placeholder="$ 0.00"
+                    autoComplete="off"
+                  />
+                </div>
+
+                {parte.metodo === "TRANSFERENCIA" && (
+                  <div style={{ marginTop: 18 }}>
+                    <h3 style={styles.sectionLabel}>
+                      ¿A QUIÉN TRANSFIRIERON?
+                    </h3>
+
+                    <div style={styles.flexGrid}>
+                      {cuentasTransferencia.map((cuenta) => {
+                        const active =
+                          parte.cuentaDestino === cuenta.nombre;
+
+                        return (
+                          <button
+                            key={cuenta.id}
+                            type="button"
+                            onClick={() =>
+                              actualizarPartePago(parte.id, {
+                                cuentaDestino: cuenta.nombre,
+                              })
+                            }
+                            style={{
+                              ...styles.optionBtn,
+                              borderColor: active
+                                ? THEME.gold
+                                : "rgba(0,0,0,0.1)",
+                              background: active
+                                ? "#fff"
+                                : "transparent",
+                            }}
+                          >
+                            <span
+                              style={{
+                                fontWeight: 900,
+                                color: active
+                                  ? THEME.gold
+                                  : THEME.textSoft,
+                              }}
+                            >
+                              {cuenta.nombre}
+                            </span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
-            </div>
+            ))}
+          </div>
+
+          {partesPago.length < 3 && (
+            <button
+              type="button"
+              onClick={agregarPartePago}
+              style={styles.addMetodoBtn}
+            >
+              <Plus size={18} />
+              AGREGAR OTRO MÉTODO
+            </button>
           )}
         </section>
 
-        <div style={styles.formGrid}>
-          <div style={styles.inputGroup}>
-            <label style={styles.smallLabel}>MONTO A REGISTRAR</label>
-
-            {tipoPago === "A_CUENTA" ? (
-              <input
-                type="number"
-                inputMode="decimal"
-                style={styles.input}
-                value={montoRegistrar}
-                onChange={(e) => {
-                  setMontoRegistrar(e.target.value);
-                  limpiarError();
-                }}
-                placeholder="$ 0.00"
-              />
-            ) : (
-              <div style={styles.readOnlyInput}>{formatoMoneda(pendiente)}</div>
-            )}
+            <div style={styles.paymentSummary}>
+          <div style={styles.paymentSummaryRow}>
+            <span>Saldo pendiente</span>
+            <strong>{formatoMoneda(pendiente)}</strong>
           </div>
 
-          <div style={styles.inputGroup}>
+          <div style={styles.paymentSummaryRow}>
+            <span>Total distribuido</span>
+            <strong>{formatoMoneda(totalDistribuido)}</strong>
+          </div>
+
+          <div style={styles.paymentSummaryRow}>
+            <span>
+              {tipoPago === "LIQUIDACION"
+                ? "Falta por distribuir"
+                : "Saldo después del abono"}
+            </span>
+            <strong
+              style={{
+                color:
+                  tipoPago === "LIQUIDACION" &&
+                  Math.abs(diferenciaLiquidacion) > 0.009
+                    ? THEME.danger
+                    : THEME.olive,
+              }}
+            >
+              {formatoMoneda(
+                tipoPago === "LIQUIDACION"
+                  ? Math.abs(diferenciaLiquidacion)
+                  : saldoDespuesPago
+              )}
+            </strong>
+          </div>
+        </div>
+
+        {incluyeEfectivo && (
+          <div style={styles.cashReceivedBox}>
             <label style={styles.smallLabel}>EFECTIVO RECIBIDO</label>
 
             <div style={styles.inputWrapper}>
               <Banknote size={20} color={THEME.gold} />
+
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
                 style={styles.inputClean}
                 value={conCuantoPaga}
                 onChange={(e) => {
-                  setConCuantoPaga(e.target.value);
+                 setConCuantoPaga(
+                    limpiarMontoInput(e.target.value)
+                  );
                   limpiarError();
                 }}
                 placeholder="0.00"
               />
             </div>
+
+            <div style={styles.cashAppliedText}>
+              Efectivo aplicado: {formatoMoneda(totalEfectivo)}
+            </div>
           </div>
-        </div>
+        )}
 
         <AnimatePresence>
-          {conCuantoPaga !== "" && (
+         {incluyeEfectivo && conCuantoPaga !== "" && (
             <motion.div
               initial={{ opacity: 0, scale: 0.92, y: 8 }}
               animate={{
@@ -490,10 +837,14 @@ function Vista4Pago({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={guardarPago}
-            disabled={guardando}
+           disabled={guardando || !pagoValido}
             style={{
               ...styles.btnConfirm,
-              opacity: guardando ? 0.85 : 1,
+              opacity: guardando || !pagoValido ? 0.5 : 1,
+              cursor:
+                guardando || !pagoValido
+                  ? "not-allowed"
+                  : "pointer",
             }}
           >
             {guardando ? "PROCESANDO..." : "CONFIRMAR REGISTRO"}
@@ -684,6 +1035,99 @@ const styles: { [key: string]: React.CSSProperties } = {
     alignItems: "center",
     justifyContent: "center",
     flexShrink: 0,
+  },
+
+    partePagoCard: {
+    background: "#fff",
+    border: `1px solid ${THEME.border}`,
+    borderRadius: "22px",
+    padding: "18px",
+    marginBottom: "14px",
+    boxShadow: "0 10px 24px rgba(18,17,15,0.05)",
+  },
+  partePagoHeader: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    marginBottom: "14px",
+  },
+  partePagoTitle: {
+    fontSize: "11px",
+    fontWeight: 900,
+    color: THEME.gold,
+    letterSpacing: "1px",
+  },
+  deleteParteBtn: {
+    width: "34px",
+    height: "34px",
+    borderRadius: "10px",
+    border: "1px solid rgba(190,18,60,0.18)",
+    background: "rgba(190,18,60,0.06)",
+    color: THEME.danger,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  parteMontoWrap: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+    marginTop: "16px",
+  },
+  addMetodoBtn: {
+    width: "100%",
+    minHeight: "52px",
+    borderRadius: "18px",
+    border: `2px dashed ${THEME.gold}70`,
+    background: "rgba(184,159,84,0.06)",
+    color: THEME.olive,
+    fontSize: "12px",
+    fontWeight: 900,
+    letterSpacing: "0.5px",
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "9px",
+    marginTop: "4px",
+  },
+
+    paymentSummary: {
+    background: THEME.black,
+    color: "#fff",
+    borderRadius: "22px",
+    padding: "18px",
+    marginBottom: "18px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "12px",
+    boxShadow: "0 14px 30px rgba(18,17,15,0.12)",
+  },
+  paymentSummaryRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "16px",
+    fontSize: "13px",
+    lineHeight: 1.4,
+  },
+  cashReceivedBox: {
+    background: "#fff",
+    border: `1px solid ${THEME.border}`,
+    borderRadius: "22px",
+    padding: "18px",
+    marginBottom: "18px",
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+  },
+  cashAppliedText: {
+    fontSize: "12px",
+    fontWeight: 800,
+    color: THEME.olive,
+    textAlign: "right",
   },
 
   formGrid: {

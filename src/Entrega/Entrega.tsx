@@ -36,6 +36,8 @@ type PedidoRow = {
   p3_concluido: boolean | null;
   entregado: boolean | null;
   fecha_inicio_urgente: string | null;
+  creado_por: string | null;
+  creado_por_nombre?: string | null;
   created_at?: string | null;
 };
 
@@ -142,10 +144,9 @@ export default function Entrega({ usuarioId }: EntregaProps) {
     return "LISTO";
   };
 
-  const formatNtomSummary = (nTomas: string[]) => {
+   const formatNtomSummary = (nTomas: string[]) => {
     if (!nTomas.length) return "S/T";
-    if (nTomas.length === 1) return nTomas[0];
-    return `${nTomas[0]} +${nTomas.length - 1}`;
+    return nTomas.join(" · ");
   };
 
   const buildDetalleResumen = (detalle: DetalleRow) => {
@@ -195,6 +196,8 @@ export default function Entrega({ usuarioId }: EntregaProps) {
             p3_concluido,
             entregado,
             fecha_inicio_urgente,
+            creado_por,
+            creado_por_nombre,
             created_at
           `
           )
@@ -375,11 +378,11 @@ export default function Entrega({ usuarioId }: EntregaProps) {
 
       setLiquidandoId(pedido.id);
 
-      const { error } = await supabase.from("pagos").insert({
+        const { error } = await supabase.from("pagos").insert({
         pedido_id: pedido.id,
         monto: resta,
         tipo: "LIQUIDACION",
-        usuario_id: usuarioId,
+        usuario_id: pedido.creado_por || usuarioId,
       });
 
       if (error) throw error;
@@ -711,8 +714,13 @@ function CardPedido({
             {pedido.cliente_nombre || "SIN NOMBRE"}
           </h2>
 
-          <div style={styles.tomaLine} className="entrega-toma-line">
+                <div style={styles.tomaLine} className="entrega-toma-line">
             N. TOMA: {pedido.n_toma_resumen}
+          </div>
+
+          <div style={styles.capturistaLine}>
+            CAPTURÓ:{" "}
+            <strong>{pedido.creado_por_nombre || "SIN REGISTRO"}</strong>
           </div>
 
           <div style={styles.entregaLine}>
@@ -1022,6 +1030,14 @@ const styles: Record<string, React.CSSProperties> = {
     fontWeight: 1000,
     color: "#000",
     letterSpacing: "0.2px",
+    wordBreak: "break-word",
+  },
+    capturistaLine: {
+    marginTop: "6px",
+    fontSize: "11px",
+    color: THEME.olive,
+    fontWeight: 700,
+    letterSpacing: "0.5px",
     wordBreak: "break-word",
   },
   entregaLine: {
