@@ -10,7 +10,7 @@ import {
   ArrowRight,
   Plus,
   Sparkles,
-  PencilLine,
+  PackageCheck,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -136,6 +136,11 @@ const Navbar = ({
       icon: <Factory size={18} />,
       badgeUrgentes,
       badgeHoy,
+    },
+    {
+      name: "Entrega",
+      view: "Entrega",
+      icon: <PackageCheck size={18} />,
     },
   ];
 
