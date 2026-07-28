@@ -1,7 +1,10 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
 import { motion, AnimatePresence } from "framer-motion";
-import { compartirTicketPdf } from "../Ticket/generarTicket";
+import {
+  compartirTicketPdf,
+  prepararTicketPdf,
+} from "../Ticket/generarTicket";
 import { enviarWhatsApp } from "../Ticket/enviarWhatsApp";
 import {
   Search,
@@ -22,6 +25,8 @@ export default function EditarPedido({ perfil }: Props) {
   const [busqueda, setBusqueda] = useState("");
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<any>(null);
+    const [ticketPreparado, setTicketPreparado] = useState(false);
+  const [compartiendoTicket, setCompartiendoTicket] = useState(false);
 
   const [nombre, setNombre] = useState("");
   const [telefono, setTelefono] = useState("");
@@ -68,6 +73,26 @@ export default function EditarPedido({ perfil }: Props) {
 
   useEffect(() => {
     cargarPedidos();
+  }, []);
+    useEffect(() => {
+    let componenteActivo = true;
+
+    prepararTicketPdf().then(
+      () => {
+        if (componenteActivo) {
+          setTicketPreparado(true);
+        }
+      },
+      () => {
+        if (componenteActivo) {
+          setTicketPreparado(true);
+        }
+      }
+    );
+
+    return () => {
+      componenteActivo = false;
+    };
   }, []);
 
   const resultados = useMemo(() => {
@@ -176,9 +201,23 @@ export default function EditarPedido({ perfil }: Props) {
 
   const compartirTicket = async () => {
     const pedidoParaTicket = pedidoConDatosActualizados();
-    if (!pedidoParaTicket) return;
 
-    await compartirTicketPdf(pedidoParaTicket);
+    if (!pedidoParaTicket || !ticketPreparado || compartiendoTicket) {
+      return;
+    }
+
+    try {
+      setCompartiendoTicket(true);
+      await compartirTicketPdf(pedidoParaTicket);
+    } catch (error: any) {
+      console.error("Error compartiendo ticket:", error);
+      alert(
+        "No se pudo compartir el ticket: " +
+          (error?.message || "error desconocido")
+      );
+    } finally {
+      setCompartiendoTicket(false);
+    }
   };
 
   return (
@@ -280,9 +319,25 @@ export default function EditarPedido({ perfil }: Props) {
                 Reenviar WhatsApp
               </button>
 
-              <button onClick={compartirTicket} style={styles.ticketBtn}>
+                           <button
+                onClick={compartirTicket}
+                style={{
+                  ...styles.ticketBtn,
+                  opacity:
+                    ticketPreparado && !compartiendoTicket ? 1 : 0.6,
+                  cursor:
+                    ticketPreparado && !compartiendoTicket
+                      ? "pointer"
+                      : "not-allowed",
+                }}
+                disabled={!ticketPreparado || compartiendoTicket}
+              >
                 <Printer size={16} />
-                Compartir Ticket
+                {!ticketPreparado
+                  ? "Preparando ticket..."
+                  : compartiendoTicket
+                  ? "Abriendo..."
+                  : "Compartir Ticket"}
               </button>
             </div>
           </motion.div>

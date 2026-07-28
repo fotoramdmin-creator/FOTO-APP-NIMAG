@@ -15,7 +15,10 @@ import {
   Receipt,
 } from "lucide-react";
 import { enviarWhatsApp } from "../Ticket/enviarWhatsApp";
-import { compartirTicketPdf } from "../Ticket/generarTicket";
+import {
+  compartirTicketPdf,
+  prepararTicketPdf,
+} from "../Ticket/generarTicket";
 
 type Detalle = {
   id: string;
@@ -68,6 +71,7 @@ export default function OrdenEnCursoDetalle({
   const [isSending, setIsSending] = useState(false);
   const [ticketOpen, setTicketOpen] = useState(false);
   const [isSharingTicket, setIsSharingTicket] = useState(false);
+  const [ticketPreparado, setTicketPreparado] = useState(false);
   const [tomasPorRenglon, setTomasPorRenglon] = useState<
     Record<string, string>
   >({});
@@ -108,6 +112,27 @@ export default function OrdenEnCursoDetalle({
       cargarPedido();
     }
   }, [pedidoId]);
+
+    useEffect(() => {
+    let componenteActivo = true;
+
+    prepararTicketPdf().then(
+      () => {
+        if (componenteActivo) {
+          setTicketPreparado(true);
+        }
+      },
+      () => {
+        if (componenteActivo) {
+          setTicketPreparado(true);
+        }
+      }
+    );
+
+    return () => {
+      componenteActivo = false;
+    };
+  }, []);
 
   const guardarTomasInterno = async () => {
     const detalles = pedido?.detalles_pedido || [];
@@ -218,10 +243,9 @@ export default function OrdenEnCursoDetalle({
 
   const manejarCompartirTicket = async () => {
     try {
-      if (!pedido) return;
+      if (!pedido || !ticketPreparado) return;
 
       setIsSharingTicket(true);
-      await guardarTomasInterno();
 
       const pedidoConTomas = {
         ...pedido,
@@ -231,7 +255,18 @@ export default function OrdenEnCursoDetalle({
         })),
       };
 
+      const guardadoPromise = guardarTomasInterno().then(
+        () => null,
+        (error) => error
+      );
+
       await compartirTicketPdf(pedidoConTomas);
+
+      const errorGuardando = await guardadoPromise;
+
+      if (errorGuardando) {
+        throw errorGuardando;
+      }
     } catch (err: any) {
       console.error("Error compartiendo ticket:", err);
       alert("Error al compartir ticket: " + (err?.message || "desconocido"));
@@ -360,14 +395,29 @@ export default function OrdenEnCursoDetalle({
                 ENVIAR WHATSAPP
               </motion.button>
 
-              <motion.button
-                whileTap={{ scale: 0.98 }}
-                style={styles.ticketActionBtn}
+                <motion.button
+                whileTap={
+                  ticketPreparado && !isSharingTicket
+                    ? { scale: 0.98 }
+                    : undefined
+                }
+                style={{
+                  ...styles.ticketActionBtn,
+                  opacity: ticketPreparado && !isSharingTicket ? 1 : 0.6,
+                  cursor:
+                    ticketPreparado && !isSharingTicket
+                      ? "pointer"
+                      : "not-allowed",
+                }}
                 onClick={manejarCompartirTicket}
-                disabled={isSharingTicket}
+                disabled={isSharingTicket || !ticketPreparado}
               >
                 <Receipt size={16} />
-                {isSharingTicket ? "GENERANDO..." : "COMPARTIR TICKET PDF"}
+                {!ticketPreparado
+                  ? "PREPARANDO TICKET..."
+                  : isSharingTicket
+                  ? "ABRIENDO..."
+                  : "COMPARTIR TICKET PDF"}
               </motion.button>
             </motion.div>
           )}

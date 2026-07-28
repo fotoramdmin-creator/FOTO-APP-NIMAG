@@ -52,32 +52,79 @@ const construirNombreArchivo = (pedido: PedidoTicket) => {
   return `ticket_${nombre || "pedido"}.pdf`;
 };
 
-const cargarImagen = (
-  url: string
-): Promise<{ dataUrl: string; width: number; height: number }> => {
+type ImagenTicket = {
+  dataUrl: string;
+  width: number;
+  height: number;
+};
+
+const LOGO_TICKET_URL = "/negro.png";
+
+let logoTicketPreparado: ImagenTicket | null = null;
+let recursosTicketPreparados = false;
+let promesaPrepararTicket: Promise<void> | null = null;
+
+const cargarImagen = (url: string): Promise<ImagenTicket> => {
   return new Promise((resolve, reject) => {
     const img = new Image();
     img.crossOrigin = "Anonymous";
+
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = img.width;
-      canvas.height = img.height;
+      canvas.width = img.naturalWidth || img.width;
+      canvas.height = img.naturalHeight || img.height;
+
       const ctx = canvas.getContext("2d");
-      if (!ctx) return reject(new Error("Canvas error"));
+
+      if (!ctx) {
+        reject(new Error("No se pudo preparar el logo del ticket."));
+        return;
+      }
+
       ctx.drawImage(img, 0, 0);
+
       resolve({
         dataUrl: canvas.toDataURL("image/png"),
-        width: img.width,
-        height: img.height,
+        width: img.naturalWidth || img.width,
+        height: img.naturalHeight || img.height,
       });
     };
-    img.onerror = () => reject(new Error("Logo error"));
+
+    img.onerror = () =>
+      reject(new Error("No se pudo cargar el logo del ticket."));
+
     img.src = url;
   });
 };
 
+export const prepararTicketPdf = (): Promise<void> => {
+  if (recursosTicketPreparados) {
+    return Promise.resolve();
+  }
+
+  if (promesaPrepararTicket) {
+    return promesaPrepararTicket;
+  }
+
+  promesaPrepararTicket = cargarImagen(LOGO_TICKET_URL)
+    .then((logo) => {
+      logoTicketPreparado = logo;
+    })
+    .catch((error) => {
+      console.warn("El ticket se generará sin logo:", error);
+      logoTicketPreparado = null;
+    })
+    .then(() => {
+      recursosTicketPreparados = true;
+    });
+
+  return promesaPrepararTicket;
+};
+
+void prepararTicketPdf();
+
 // --- 3. GENERACIÓN DEL DISEÑO DEL PDF ---
-export const generarTicketPdf = async (pedido: PedidoTicket) => {
+export const generarTicketPdf = (pedido: PedidoTicket) => {
   const doc = new jsPDF({
     orientation: "portrait",
     unit: "mm",
@@ -127,14 +174,22 @@ export const generarTicketPdf = async (pedido: PedidoTicket) => {
   };
 
   // LOGO
-  try {
-    const logo = await cargarImagen("/negro.png");
-    const ratio = logo.width / logo.height;
-    const logoW = 35;
+  if (logoTicketPreparado) {
+    const ratio = logoTicketPreparado.width / logoTicketPreparado.height;
+    const logoW = 42;
     const logoH = logoW / ratio;
-    doc.addImage(logo.dataUrl, "PNG", (width - logoW) / 2, y, logoW, logoH);
+
+    doc.addImage(
+      logoTicketPreparado.dataUrl,
+      "PNG",
+      (width - logoW) / 2,
+      y,
+      logoW,
+      logoH
+    );
+
     y += logoH + 8;
-  } catch (err) {
+  } else {
     centerText("FOTO RAMIREZ", 14, "bold");
     y += 2;
   }
@@ -272,29 +327,60 @@ export const generarTicketPdf = async (pedido: PedidoTicket) => {
 };
 
 // --- 4. EXPORTACIONES FINALES ---
-export const descargarTicketPdf = async (pedido: PedidoTicket) => {
-  const doc = await generarTicketPdf(pedido);
+export const descargarTicketPdf = (pedido: PedidoTicket) => {
+  const doc = generarTicketPdf(pedido);
   doc.save(construirNombreArchivo(pedido));
 };
 
 export const compartirTicketPdf = async (pedido: PedidoTicket) => {
-  const doc = await generarTicketPdf(pedido);
+  const doc = generarTicketPdf(pedido);
   const blob = doc.output("blob");
   const filename = construirNombreArchivo(pedido);
   const file = new File([blob], filename, { type: "application/pdf" });
 
-  if (navigator.share) {
+  const puedeCompartirArchivo =
+    !!navigator.share &&
+    !!navigator.canShare &&
+    (() => {
+      try {
+        return navigator.canShare({ files: [file] });
+      } catch {
+        return false;
+      }
+    })();
+
+  if (puedeCompartirArchivo) {
     try {
-      await navigator.share({ title: "Ticket", files: [file] });
+      await navigator.share({
+        title: "Ticket",
+        text: "Ticket de Foto Estudio Ramírez",
+        files: [file],
+      });
       return;
-    } catch (e) {
-      console.error(e);
+    } catch (error: any) {
+      if (error?.name === "AbortError") {
+        return;
+      }
+
+      console.warn(
+        "No se pudo abrir Compartir. Se descargará el ticket:",
+        error
+      );
     }
   }
 
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
+
   a.href = url;
   a.download = filename;
+  a.style.display = "none";
+
+  document.body.appendChild(a);
   a.click();
+  a.remove();
+
+  window.setTimeout(() => {
+    URL.revokeObjectURL(url);
+  }, 60000);
 };

@@ -1,6 +1,9 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
-import { compartirTicketPdf } from "../Ticket/generarTicket";
+import {
+  compartirTicketPdf,
+  prepararTicketPdf,
+} from "../Ticket/generarTicket";
 import { enviarWhatsApp } from "../Ticket/enviarWhatsApp";
 import {
   AlertTriangle,
@@ -105,6 +108,8 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
   const [guardandoPago, setGuardandoPago] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+    const [ticketPreparado, setTicketPreparado] = useState(false);
+  const [compartiendoTicket, setCompartiendoTicket] = useState(false);
 
   const numero = (valor: any) => {
     if (valor === "" || valor === null || valor === undefined) return 0;
@@ -192,6 +197,26 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
   useEffect(() => {
     cargarCuentasTransferencia();
   }, []);
+    useEffect(() => {
+    let componenteActivo = true;
+
+    prepararTicketPdf().then(
+      () => {
+        if (componenteActivo) {
+          setTicketPreparado(true);
+        }
+      },
+      () => {
+        if (componenteActivo) {
+          setTicketPreparado(true);
+        }
+      }
+    );
+
+    return () => {
+      componenteActivo = false;
+    };
+  }, []);
 
   useEffect(() => {
     if (pedidoId) cargarPedido();
@@ -253,10 +278,25 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
     enviarWhatsApp(pedidoActualizado);
   };
 
-  const compartirTicket = async () => {
+   const compartirTicket = async () => {
     const pedidoActualizado = pedidoParaTicket();
-    if (!pedidoActualizado) return;
-    await compartirTicketPdf(pedidoActualizado);
+
+    if (!pedidoActualizado || !ticketPreparado || compartiendoTicket) {
+      return;
+    }
+
+    try {
+      setCompartiendoTicket(true);
+      await compartirTicketPdf(pedidoActualizado);
+    } catch (error: any) {
+      console.error("Error compartiendo ticket:", error);
+      alert(
+        "No se pudo compartir el ticket: " +
+          (error?.message || "error desconocido")
+      );
+    } finally {
+      setCompartiendoTicket(false);
+    }
   };
 
   const abrirEditarPago = (pago: Pago) => {
@@ -704,13 +744,25 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
           WhatsApp
         </button>
 
-        <button
-          style={styles.ticketBtn}
+             <button
+          style={{
+            ...styles.ticketBtn,
+            opacity:
+              !saving && ticketPreparado && !compartiendoTicket ? 1 : 0.6,
+            cursor:
+              !saving && ticketPreparado && !compartiendoTicket
+                ? "pointer"
+                : "not-allowed",
+          }}
           onClick={compartirTicket}
-          disabled={saving}
+          disabled={saving || !ticketPreparado || compartiendoTicket}
         >
           <Printer size={18} />
-          Ticket
+          {!ticketPreparado
+            ? "Preparando..."
+            : compartiendoTicket
+            ? "Abriendo..."
+            : "Ticket"}
         </button>
 
         <button
