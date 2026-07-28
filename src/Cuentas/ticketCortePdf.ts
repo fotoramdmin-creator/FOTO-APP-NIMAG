@@ -52,14 +52,85 @@ const loadImageInfo = (src: string): Promise<{ w: number; h: number }> =>
   });
 
 const imageToDataURL = async (src: string): Promise<string> => {
-  const res = await fetch(src);
+  const res = await fetch(src, { cache: "force-cache" });
+
+  if (!res.ok) {
+    throw new Error(`No se pudo cargar el logo: ${res.status}`);
+  }
+
   const blob = await res.blob();
+
   return await new Promise((resolve, reject) => {
     const fr = new FileReader();
     fr.onload = () => resolve(fr.result as string);
-    fr.onerror = reject;
+    fr.onerror = () => reject(new Error("No se pudo leer el archivo del logo."));
     fr.readAsDataURL(blob);
   });
+};
+
+type LogoPreparado = {
+  dataUrl: string;
+  dimsMm: {
+    w: number;
+    h: number;
+  };
+};
+
+const logosPreparados = new Map<string, LogoPreparado | null>();
+const logosCargando = new Map<string, Promise<void>>();
+
+const prepararLogo = (src: string): Promise<void> => {
+  if (logosPreparados.has(src)) {
+    return Promise.resolve();
+  }
+
+  const cargaExistente = logosCargando.get(src);
+
+  if (cargaExistente) {
+    return cargaExistente;
+  }
+
+  const nuevaCarga = Promise.all([
+    loadImageInfo(src),
+    imageToDataURL(src),
+  ])
+    .then(([info, dataUrl]) => {
+      const maxW = 44;
+      const maxH = 20;
+      const ratio = info.w / info.h;
+
+      let w = maxW;
+      let h = w / ratio;
+
+      if (h > maxH) {
+        h = maxH;
+        w = h * ratio;
+      }
+
+      logosPreparados.set(src, {
+        dataUrl,
+        dimsMm: {
+          w: Number(w.toFixed(2)),
+          h: Number(h.toFixed(2)),
+        },
+      });
+    })
+    .catch((error) => {
+      console.warn("El ticket se generará sin logo:", error);
+      logosPreparados.set(src, null);
+    })
+    .then(() => {
+      logosCargando.delete(src);
+    });
+
+  logosCargando.set(src, nuevaCarga);
+  return nuevaCarga;
+};
+
+export const prepararTicketCorte = async (
+  logoSrc: string = defaultLogo
+): Promise<void> => {
+  await prepararLogo(logoSrc);
 };
 
 const safeWindowOpenBlob = (blob: Blob, filename = "corte.pdf") => {
@@ -322,35 +393,11 @@ export async function imprimirTicketCorte({
   logoSrc,
 }: TicketParams) {
   try {
-    let logoDataUrl: string | null = null;
-    let logoDimsMm: { w: number; h: number } | null = null;
-
     const chosenLogo = logoSrc || defaultLogo;
+    const logoPreparado = logosPreparados.get(chosenLogo) || null;
 
-    try {
-      const [info, dataUrl] = await Promise.all([
-        loadImageInfo(chosenLogo),
-        imageToDataURL(chosenLogo),
-      ]);
-      logoDataUrl = dataUrl;
-
-      const maxW = 44;
-      const maxH = 20;
-      const ratio = info.w / info.h;
-
-      let w = maxW;
-      let h = w / ratio;
-
-      if (h > maxH) {
-        h = maxH;
-        w = h * ratio;
-      }
-
-      logoDimsMm = { w: Number(w.toFixed(2)), h: Number(h.toFixed(2)) };
-    } catch {
-      logoDataUrl = null;
-      logoDimsMm = null;
-    }
+    const logoDataUrl = logoPreparado?.dataUrl || null;
+    const logoDimsMm = logoPreparado?.dimsMm || null;
 
     const tmp = new jsPDF({ unit: "mm", format: [58, 320], compress: true });
     const layout = buildLayout(
@@ -387,13 +434,27 @@ export async function imprimirTicketCorte({
         }
       })();
 
-    if (canShareFiles) {
-      await navigator.share({
-        files: [file],
-        title: "Corte de caja",
-        text: "Ticket de corte de caja",
-      });
-      return;
+     if (canShareFiles) {
+      try {
+        await navigator.share({
+          files: [file],
+          title: "Corte de caja",
+          text: "Ticket de corte de caja",
+        });
+        return;
+      } catch (shareError: any) {
+        if (shareError?.name === "AbortError") {
+          return;
+        }
+
+        console.warn(
+          "No se pudo abrir el menú Compartir. Se descargará el ticket:",
+          shareError
+        );
+
+        safeWindowOpenBlob(blob, "corte-caja.pdf");
+        return;
+      }
     }
 
     safeWindowOpenBlob(blob, "corte-caja.pdf");

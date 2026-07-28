@@ -11,7 +11,10 @@ import {
   Sparkles,
   FileText,
 } from "lucide-react";
-import { imprimirTicketCorte } from "./ticketCortePdf";
+import {
+  imprimirTicketCorte,
+  prepararTicketCorte,
+} from "./ticketCortePdf";
 
 const logoCuadro = "/LOGO.png";
 
@@ -72,6 +75,7 @@ export default function CuentasDetalle({ dia, onBack }: Props) {
   const [rows, setRows] = useState<MovimientoRow[]>([]);
   const [loading, setLoading] = useState(false);
   const [printing, setPrinting] = useState(false);
+  const [ticketPreparado, setTicketPreparado] = useState(false);
   const [err, setErr] = useState("");
   const [caja, setCaja] = useState("0");
 
@@ -101,6 +105,29 @@ export default function CuentasDetalle({ dia, onBack }: Props) {
   useEffect(() => {
     fetchDetalle();
   }, [dia]);
+
+    useEffect(() => {
+    let componenteActivo = true;
+
+    setTicketPreparado(false);
+
+     prepararTicketCorte(logoCuadro).then(
+      () => {
+        if (componenteActivo) {
+          setTicketPreparado(true);
+        }
+      },
+      () => {
+        if (componenteActivo) {
+          setTicketPreparado(true);
+        }
+      }
+    );
+
+    return () => {
+      componenteActivo = false;
+    };
+  }, []);
 
   const resumen = useMemo(() => {
     const entradas = rows
@@ -186,16 +213,29 @@ export default function CuentasDetalle({ dia, onBack }: Props) {
                 <RefreshCw size={18} className={loading ? "spin" : ""} />
               </motion.button>
 
-              <motion.button
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                     <motion.button
+                whileHover={
+                  ticketPreparado && !printing ? { scale: 1.05 } : undefined
+                }
+                whileTap={
+                  ticketPreparado && !printing ? { scale: 0.95 } : undefined
+                }
                 onClick={handlePrint}
-                style={S.btnCream}
-                disabled={printing}
+                style={{
+                  ...S.btnCream,
+                  opacity: ticketPreparado && !printing ? 1 : 0.65,
+                  cursor:
+                    ticketPreparado && !printing ? "pointer" : "not-allowed",
+                }}
+                disabled={printing || !ticketPreparado}
                 type="button"
               >
                 <Printer size={18} />
-                {printing ? "Imprimiendo..." : "Imprimir Ticket"}
+                {!ticketPreparado
+                  ? "Preparando ticket..."
+                  : printing
+                  ? "Abriendo..."
+                  : "Imprimir Ticket"}
               </motion.button>
             </div>
           </div>
