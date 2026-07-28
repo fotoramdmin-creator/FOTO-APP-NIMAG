@@ -97,8 +97,8 @@ const money = (n: number) =>
   }).format(n || 0);
 
 const initialSeleccion = (perfil?: Perfil): SeleccionType => ({
-  usuarioId: perfil?.id || "",
-  usuarioNombre: perfil?.nombre || "",
+  usuarioId: perfil?.puede_elegir_usuario ? "" : perfil?.id || "",
+  usuarioNombre: perfil?.puede_elegir_usuario ? "" : perfil?.nombre || "",
   tamano: "",
   cantidad: 0,
   tipo: "",
@@ -156,10 +156,10 @@ const Vista1 = ({
   useEffect(() => {
     setSeleccion((prev) => ({
       ...prev,
-      usuarioId: perfil?.id || prev.usuarioId || "",
-      usuarioNombre: perfil?.nombre || prev.usuarioNombre || "",
+      usuarioId: puedeElegirUsuario ? "" : perfil?.id || "",
+      usuarioNombre: puedeElegirUsuario ? "" : perfil?.nombre || "",
     }));
-  }, [perfil]);
+  }, [perfil?.id, perfil?.nombre, puedeElegirUsuario]);
 
   useEffect(() => {
     return () => {
@@ -324,8 +324,16 @@ const Vista1 = ({
   const requiereTipo = tiposDisponibles.length > 0;
   const requierePapel = papelesDisponibles.length > 0;
 
+  const capturistaValido = puedeElegirUsuario
+    ? usuarios.some(
+      (usuario) =>
+        usuario.id === seleccion.usuarioId &&
+        usuario.nombre === seleccion.usuarioNombre
+    )
+    : Boolean(seleccion.usuarioId);
+
   const formularioValido =
-    Boolean(seleccion.usuarioId) &&
+    capturistaValido &&
     Boolean(seleccion.tamano) &&
     seleccion.cantidad > 0 &&
     (!requiereTipo || Boolean(seleccion.tipo)) &&
@@ -345,12 +353,45 @@ const Vista1 = ({
     seleccion.esKenfor ||
     Boolean(seleccion.especificaciones);
 
+  const continuarPedido = () => {
+    if (!capturistaValido) {
+      setMostrarUsuarios(true);
+      alert("Selecciona al capturista antes de continuar con el pedido.");
+      return;
+    }
+
+    const renglonesConCapturistaCorrecto = carrito.every(
+      (item) =>
+        item.usuarioId === seleccion.usuarioId &&
+        item.usuarioNombre === seleccion.usuarioNombre
+    );
+
+    if (!renglonesConCapturistaCorrecto) {
+      alert(
+        "Hay renglones que no tienen asignado el capturista seleccionado. Vuelve a seleccionar al capturista para corregirlos."
+      );
+      return;
+    }
+
+    onContinuar();
+  };
+
   const abrirFormulario = () => {
+    if (!capturistaValido) {
+      setMostrarUsuarios(true);
+      alert("Selecciona al capturista antes de agregar un renglón.");
+      return;
+    }
+
     setEditandoId(null);
     setSeleccion((prev) => ({
       ...prev,
-      usuarioId: prev.usuarioId || perfil?.id || "",
-      usuarioNombre: prev.usuarioNombre || perfil?.nombre || "",
+      usuarioId: puedeElegirUsuario
+        ? prev.usuarioId
+        : prev.usuarioId || perfil?.id || "",
+      usuarioNombre: puedeElegirUsuario
+        ? prev.usuarioNombre
+        : prev.usuarioNombre || perfil?.nombre || "",
       tamano: "",
       cantidad: 0,
       tipo: "",
@@ -485,14 +526,20 @@ const Vista1 = ({
           setOcultarNavbar(false);
         }}
         onAgregar={(item) => {
+          const itemConCapturista: ItemCarrito = {
+            ...item,
+            usuarioId: seleccion.usuarioId,
+            usuarioNombre: seleccion.usuarioNombre,
+          };
+
           setCarrito((prev) => {
             if (pedidoEspecialEditando) {
               return prev.map((r) =>
-                r.id === pedidoEspecialEditando.id ? item : r
+                r.id === pedidoEspecialEditando.id ? itemConCapturista : r
               );
             }
 
-            return [...prev, item];
+            return [...prev, itemConCapturista];
           });
 
           setMostrarPedidoEspecial(false);
@@ -571,6 +618,15 @@ const Vista1 = ({
                             usuarioId: u.id,
                             usuarioNombre: u.nombre,
                           }));
+
+                          setCarrito((prev) =>
+                            prev.map((item) => ({
+                              ...item,
+                              usuarioId: u.id,
+                              usuarioNombre: u.nombre,
+                            }))
+                          );
+
                           setMostrarUsuarios(false);
                         }}
                         style={{
@@ -640,7 +696,15 @@ const Vista1 = ({
             </motion.button>
             <motion.button
               type="button"
-              onClick={() => setMostrarPedidoEspecial(true)}
+              onClick={() => {
+                if (!capturistaValido) {
+                  setMostrarUsuarios(true);
+                  alert("Selecciona al capturista antes de agregar un pedido especial.");
+                  return;
+                }
+
+                setMostrarPedidoEspecial(true);
+              }}
               whileHover={{ y: -4, scale: 1.01 }}
               whileTap={{ scale: 0.98 }}
               style={{
@@ -769,7 +833,7 @@ const Vista1 = ({
                 type="button"
                 whileHover={{ scale: 1.03 }}
                 whileTap={{ scale: 0.97 }}
-                onClick={onContinuar}
+                onClick={continuarPedido}
                 style={styles.continuarBtn}
               >
                 Continuar
