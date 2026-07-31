@@ -15,6 +15,7 @@ import { supabase } from "../supabaseClient";
 
 type EntregaProps = {
   usuarioId?: string | null;
+  busquedaInicial?: string | null;
 };
 
 type PedidoRow = {
@@ -106,8 +107,11 @@ const STATUS_CONFIG: Record<
   },
 };
 
-export default function Entrega({ usuarioId }: EntregaProps) {
-  const [busqueda, setBusqueda] = useState("");
+export default function Entrega({
+  usuarioId,
+  busquedaInicial,
+}: EntregaProps) {
+  const [busqueda, setBusqueda] = useState(busquedaInicial || "");
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
   const [pedidos, setPedidos] = useState<PedidoUI[]>([]);
   const [loading, setLoading] = useState(false);
@@ -144,7 +148,7 @@ export default function Entrega({ usuarioId }: EntregaProps) {
     return "LISTO";
   };
 
-   const formatNtomSummary = (nTomas: string[]) => {
+  const formatNtomSummary = (nTomas: string[]) => {
     if (!nTomas.length) return "S/T";
     return nTomas.join(" · ");
   };
@@ -378,7 +382,7 @@ export default function Entrega({ usuarioId }: EntregaProps) {
 
       setLiquidandoId(pedido.id);
 
-        const { error } = await supabase.from("pagos").insert({
+      const { error } = await supabase.from("pagos").insert({
         pedido_id: pedido.id,
         monto: resta,
         tipo: "LIQUIDACION",
@@ -494,8 +498,8 @@ export default function Entrega({ usuarioId }: EntregaProps) {
               ...(toast.type === "success"
                 ? styles.toastSuccess
                 : toast.type === "warning"
-                ? styles.toastWarning
-                : styles.toastError),
+                  ? styles.toastWarning
+                  : styles.toastError),
             }}
           >
             {toast.type === "success" ? (
@@ -714,7 +718,7 @@ function CardPedido({
             {pedido.cliente_nombre || "SIN NOMBRE"}
           </h2>
 
-                <div style={styles.tomaLine} className="entrega-toma-line">
+          <div style={styles.tomaLine} className="entrega-toma-line">
             N. TOMA: {pedido.n_toma_resumen}
           </div>
 
@@ -851,8 +855,8 @@ function CardPedido({
               ...styles.btnCobrar,
               opacity:
                 liquidando ||
-                !pedido.p3_concluido ||
-                (isOpen && (!montoPaga || Number(montoPaga) < resta))
+                  !pedido.p3_concluido ||
+                  (isOpen && (!montoPaga || Number(montoPaga) < resta))
                   ? 0.55
                   : 1,
             }}
@@ -1032,7 +1036,7 @@ const styles: Record<string, React.CSSProperties> = {
     letterSpacing: "0.2px",
     wordBreak: "break-word",
   },
-    capturistaLine: {
+  capturistaLine: {
     marginTop: "6px",
     fontSize: "11px",
     color: THEME.olive,
