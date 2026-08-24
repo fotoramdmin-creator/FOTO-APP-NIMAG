@@ -5,6 +5,7 @@ import {
   Search,
   CalendarDays,
   Clock,
+  Mail,
   AlertTriangle,
   ChevronRight,
 } from "lucide-react";
@@ -21,6 +22,7 @@ type Pedido = {
   id: string;
   cliente_nombre: string | null;
   cliente_telefono: string | null;
+  cliente_email: string | null;
   fecha_creacion: string | null;
   fecha_entrega: string | null;
   horario_entrega: string | null;
@@ -71,8 +73,9 @@ export default function BusquedaPedidos() {
         .select(
           `
           id,
-          cliente_nombre,
+                  cliente_nombre,
           cliente_telefono,
+          cliente_email,
           fecha_creacion,
           fecha_entrega,
           horario_entrega,
@@ -97,6 +100,7 @@ export default function BusquedaPedidos() {
         const filtros = [
           `cliente_nombre.ilike.%${texto}%`,
           `cliente_telefono.ilike.%${texto}%`,
+          `cliente_email.ilike.%${texto.toLowerCase()}%`,
         ];
 
         if (idsPorToma.length > 0) {
@@ -203,11 +207,28 @@ export default function BusquedaPedidos() {
                     </div>
                   )}
 
-                  <h2 style={styles.nombre}>
+                                   <h2 style={styles.nombre}>
                     {p.cliente_nombre || "SIN NOMBRE"}
                   </h2>
 
-                  <p style={styles.toma}>Toma: {tomas || "Sin toma"}</p>
+                  {p.cliente_email ? (
+                    <p
+                      style={{
+                        ...styles.toma,
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 6,
+                        textTransform: "lowercase",
+                      }}
+                    >
+                      <Mail size={14} />
+                      {p.cliente_email}
+                    </p>
+                  ) : null}
+
+                  <p style={styles.toma}>
+                    Toma: {tomas || "Sin toma"}
+                  </p>
                 </div>
 
                 <ChevronRight size={22} color="#b89f54" />
@@ -230,8 +251,8 @@ export default function BusquedaPedidos() {
                   {p.entregado
                     ? "Entregado"
                     : p.pagado
-                    ? "Pagado"
-                    : "Pendiente"}
+                      ? "Pagado"
+                      : "Pendiente"}
                 </span>
 
                 {typeof p.resta === "number" && p.resta > 0 && (

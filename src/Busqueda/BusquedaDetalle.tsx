@@ -13,6 +13,7 @@ import {
   Hash,
   Save,
   User,
+  Mail,
   Wallet,
   Layers,
   MessageCircle,
@@ -54,6 +55,7 @@ type Pedido = {
   id: string;
   cliente_nombre: string | null;
   cliente_telefono: string | null;
+  cliente_email: string | null;
   fecha_entrega: string | null;
   horario_entrega: string | null;
   urgente: boolean | null;
@@ -87,6 +89,14 @@ const THEME = {
   card: "#FFFFFF",
 };
 
+const DOMINIOS_CORREO = [
+  "@gmail.com",
+  "@hotmail.com",
+  "@outlook.com",
+  "@yahoo.com",
+  "@icloud.com",
+];
+
 export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [detalles, setDetalles] = useState<Detalle[]>([]);
@@ -108,7 +118,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
   const [guardandoPago, setGuardandoPago] = useState(false);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-    const [ticketPreparado, setTicketPreparado] = useState(false);
+  const [ticketPreparado, setTicketPreparado] = useState(false);
   const [compartiendoTicket, setCompartiendoTicket] = useState(false);
 
   const numero = (valor: any) => {
@@ -141,8 +151,9 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
         .select(
           `
           id,
-          cliente_nombre,
+                  cliente_nombre,
           cliente_telefono,
+          cliente_email,
           fecha_entrega,
           horario_entrega,
           urgente,
@@ -197,7 +208,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
   useEffect(() => {
     cargarCuentasTransferencia();
   }, []);
-    useEffect(() => {
+  useEffect(() => {
     let componenteActivo = true;
 
     prepararTicketPdf().then(
@@ -252,6 +263,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
       ...pedido,
       cliente_nombre: pedido.cliente_nombre || "",
       cliente_telefono: pedido.cliente_telefono || "",
+      cliente_email: pedido.cliente_email || "",
       fecha_entrega: pedido.fecha_entrega || "",
       horario_entrega: pedido.horario_entrega || "",
       total_bruto: numero(pedido.total_bruto),
@@ -278,7 +290,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
     enviarWhatsApp(pedidoActualizado);
   };
 
-   const compartirTicket = async () => {
+  const compartirTicket = async () => {
     const pedidoActualizado = pedidoParaTicket();
 
     if (!pedidoActualizado || !ticketPreparado || compartiendoTicket) {
@@ -292,7 +304,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
       console.error("Error compartiendo ticket:", error);
       alert(
         "No se pudo compartir el ticket: " +
-          (error?.message || "error desconocido")
+        (error?.message || "error desconocido")
       );
     } finally {
       setCompartiendoTicket(false);
@@ -388,9 +400,16 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
       const { error: pedidoError } = await supabase
         .from("pedidos")
         .update({
-          cliente_nombre: pedido.cliente_nombre || null,
-          cliente_telefono: pedido.cliente_telefono || null,
-          fecha_entrega: pedido.fecha_entrega || null,
+          cliente_nombre:
+            pedido.cliente_nombre || null,
+          cliente_telefono:
+            pedido.cliente_telefono || null,
+          cliente_email:
+            pedido.cliente_email
+              ?.trim()
+              .toLowerCase() || null,
+          fecha_entrega:
+            pedido.fecha_entrega || null,
           horario_entrega: pedido.horario_entrega || null,
           urgente: !!pedido.urgente,
           entregado: !!pedido.entregado,
@@ -497,12 +516,97 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
             onChange={(v) => cambiarPedido("cliente_nombre", v.toUpperCase())}
           />
 
-          <Field
+                 <Field
             label="Teléfono"
             value={pedido.cliente_telefono || ""}
             onChange={(v) => cambiarPedido("cliente_telefono", v)}
             inputMode="tel"
           />
+
+          <div
+            style={{
+              gridColumn: "1 / -1",
+              display: "grid",
+              gap: 9,
+            }}
+          >
+            <label
+              style={{
+                ...styles.label,
+                display: "flex",
+                alignItems: "center",
+                gap: 7,
+              }}
+            >
+              <Mail size={15} color={THEME.gold} />
+              Correo electrónico (opcional)
+            </label>
+
+            <input
+              type="email"
+              inputMode="email"
+              autoCapitalize="none"
+              autoCorrect="off"
+              value={pedido.cliente_email || ""}
+              onChange={(e) =>
+                cambiarPedido(
+                  "cliente_email",
+                  e.target.value
+                    .replace(/\s+/g, "")
+                    .toLowerCase()
+                )
+              }
+              style={styles.input}
+              placeholder="cliente@gmail.com"
+            />
+
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                gap: 7,
+              }}
+            >
+              {DOMINIOS_CORREO.map((dominio) => {
+                const usuarioCorreo = (
+                  pedido.cliente_email || ""
+                )
+                  .split("@")[0]
+                  .trim()
+                  .toLowerCase();
+
+                return (
+                  <button
+                    key={dominio}
+                    type="button"
+                    disabled={!usuarioCorreo}
+                    onClick={() =>
+                      cambiarPedido(
+                        "cliente_email",
+                        `${usuarioCorreo}${dominio}`
+                      )
+                    }
+                    style={{
+                      minHeight: 34,
+                      borderRadius: 10,
+                      border: `1px solid ${THEME.gold}`,
+                      background: THEME.white,
+                      color: THEME.olive,
+                      padding: "0 10px",
+                      fontSize: 11,
+                      fontWeight: 800,
+                      cursor: usuarioCorreo
+                        ? "pointer"
+                        : "not-allowed",
+                      opacity: usuarioCorreo ? 1 : 0.45,
+                    }}
+                  >
+                    {dominio}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
         </div>
       </section>
 
@@ -529,32 +633,32 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
         </div>
 
         <div style={styles.switchGrid}>
-  <SwitchBox
-    label="Urgente"
-    checked={!!pedido.urgente}
-    onChange={(v) => {
-      cambiarPedido("urgente", v);
+          <SwitchBox
+            label="Urgente"
+            checked={!!pedido.urgente}
+            onChange={(v) => {
+              cambiarPedido("urgente", v);
 
-      if (v) {
-        cambiarPedido("horario_entrega", "15 A 25 MINUTOS");
-      } else {
-        cambiarPedido("horario_entrega", "");
-      }
-    }}
-  />
+              if (v) {
+                cambiarPedido("horario_entrega", "15 A 25 MINUTOS");
+              } else {
+                cambiarPedido("horario_entrega", "");
+              }
+            }}
+          />
 
-  <SwitchBox
-    label="Pagado"
-    checked={!!pedido.pagado}
-    onChange={() => {}}
-  />
+          <SwitchBox
+            label="Pagado"
+            checked={!!pedido.pagado}
+            onChange={() => { }}
+          />
 
-  <SwitchBox
-    label="Entregado"
-    checked={!!pedido.entregado}
-    onChange={(v) => cambiarPedido("entregado", v)}
-  />
-</div>
+          <SwitchBox
+            label="Entregado"
+            checked={!!pedido.entregado}
+            onChange={(v) => cambiarPedido("entregado", v)}
+          />
+        </div>
       </section>
 
       <section style={styles.section}>
@@ -744,7 +848,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
           WhatsApp
         </button>
 
-             <button
+        <button
           style={{
             ...styles.ticketBtn,
             opacity:
@@ -761,8 +865,8 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
           {!ticketPreparado
             ? "Preparando..."
             : compartiendoTicket
-            ? "Abriendo..."
-            : "Ticket"}
+              ? "Abriendo..."
+              : "Ticket"}
         </button>
 
         <button

@@ -11,7 +11,8 @@ import {
   BadgeDollarSign,
   Tag,
   X,
-  Phone,
+   Phone,
+  Mail,
   Clock,
 } from "lucide-react";
 
@@ -19,6 +20,7 @@ import {
 type DatosCliente = {
   cliente_nombre: string;
   cliente_telefono: string;
+  cliente_email: string;
   fecha_entrega: string;
   horario_entrega: string;
 };
@@ -155,10 +157,17 @@ const Vista3 = ({
                   <div style={styles.infoHighlight}>
                     {datosCliente.cliente_nombre || "Sin nombre"}
                   </div>
-                  <div style={styles.subInfo}>
-                    <Phone size={12} />{" "}
-                    {datosCliente.cliente_telefono || "Sin Tel."}
-                  </div>
+                                  {datosCliente.cliente_email ? (
+                    <div
+                      style={{
+                        ...styles.subInfo,
+                        textTransform: "lowercase",
+                      }}
+                    >
+                      <Mail size={12} />{" "}
+                      {datosCliente.cliente_email}
+                    </div>
+                  ) : null}
                 </div>
                 <div style={styles.infoGroup}>
                   <div style={styles.miniLabel}>

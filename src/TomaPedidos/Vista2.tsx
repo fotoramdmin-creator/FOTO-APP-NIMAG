@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import {
   User,
   Phone,
+  Mail,
   CalendarDays,
   ArrowLeft,
   ArrowRight,
@@ -12,6 +13,7 @@ import {
 type DatosCliente = {
   cliente_nombre: string;
   cliente_telefono: string;
+  cliente_email: string;
   fecha_entrega: string;
   horario_entrega: string;
 };
@@ -40,6 +42,14 @@ const THEME = {
   shadow: "0 20px 50px rgba(50, 42, 32, 0.1)",
   urgentBg: "rgba(184, 159, 84, 0.10)",
 };
+
+const DOMINIOS_CORREO = [
+  "@gmail.com",
+  "@hotmail.com",
+  "@outlook.com",
+  "@yahoo.com",
+  "@icloud.com",
+];
 
 const Vista2 = ({
   datosCliente,
@@ -98,12 +108,52 @@ const Vista2 = ({
     }
   }, [pedidoEsUrgente, setDatosCliente]);
 
+  const correoActual =
+    datosCliente.cliente_email.trim();
+
+  const correoValido =
+    correoActual === "" ||
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(
+      correoActual
+    );
+
   const formularioValido =
     datosCliente.cliente_nombre.trim() !== "" &&
-    datosCliente.cliente_telefono.trim() !== "";
+    datosCliente.cliente_telefono.trim() !== "" &&
+    correoValido;
 
-  const actualizarCampo = (campo: keyof DatosCliente, valor: string) => {
-    setDatosCliente((prev) => ({ ...prev, [campo]: valor }));
+  const actualizarCampo = (
+    campo: keyof DatosCliente,
+    valor: string
+  ) => {
+    setDatosCliente((prev) => ({
+      ...prev,
+      [campo]: valor,
+    }));
+  };
+
+  const actualizarCorreo = (valor: string) => {
+    actualizarCampo(
+      "cliente_email",
+      valor.replace(/\s+/g, "").toLowerCase()
+    );
+  };
+
+  const aplicarDominioCorreo = (
+    dominio: string
+  ) => {
+    const usuarioCorreo =
+      datosCliente.cliente_email
+        .split("@")[0]
+        .replace(/\s+/g, "")
+        .toLowerCase();
+
+    if (!usuarioCorreo) return;
+
+    actualizarCampo(
+      "cliente_email",
+      `${usuarioCorreo}${dominio}`
+    );
   };
 
   const handleTimeClick = (h: string, m: string, p: string) => {
@@ -175,6 +225,87 @@ const Vista2 = ({
               </div>
             </div>
 
+            <div
+              style={{
+                ...styles.inputBlock,
+                ...(isMobile
+                  ? {}
+                  : styles.emailBlockDesktop),
+              }}
+            >
+              <div style={styles.inputLabel}>
+                Correo electrónico (opcional)
+              </div>
+
+              <div
+                style={{
+                  ...styles.inputWrap,
+                  ...(!correoValido
+                    ? styles.inputWrapError
+                    : {}),
+                }}
+              >
+                <Mail
+                  size={18}
+                  color={THEME.gold}
+                  strokeWidth={2.5}
+                />
+
+                <input
+                  type="email"
+                  inputMode="email"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  value={datosCliente.cliente_email}
+                  onChange={(event) =>
+                    actualizarCorreo(event.target.value)
+                  }
+                  placeholder="cliente@gmail.com"
+                  style={styles.input}
+                />
+              </div>
+
+              <div style={styles.emailDomains}>
+                <span style={styles.emailDomainsLabel}>
+                  Terminaciones rápidas:
+                </span>
+
+                <div style={styles.emailDomainsButtons}>
+                  {DOMINIOS_CORREO.map((dominio) => (
+                    <button
+                      key={dominio}
+                      type="button"
+                      onClick={() =>
+                        aplicarDominioCorreo(dominio)
+                      }
+                      disabled={
+                        !datosCliente.cliente_email
+                          .split("@")[0]
+                          .trim()
+                      }
+                      style={{
+                        ...styles.emailDomainButton,
+                        opacity: datosCliente.cliente_email
+                          .split("@")[0]
+                          .trim()
+                          ? 1
+                          : 0.48,
+                      }}
+                    >
+                      {dominio}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {!correoValido ? (
+                <span style={styles.emailError}>
+                  Escribe un correo válido, por ejemplo:
+                  cliente@gmail.com
+                </span>
+              ) : null}
+            </div>
             {pedidoEsUrgente ? (
               <div
                 style={{
@@ -450,6 +581,11 @@ const styles: { [key: string]: React.CSSProperties } = {
     gridTemplateColumns: "1fr",
   },
 
+    emailBlockDesktop: {
+    gridColumn: "1 / -1",
+  },
+
+
   fechaBlockDesktop: {
     gridColumn: "1 / 2",
   },
@@ -495,6 +631,48 @@ const styles: { [key: string]: React.CSSProperties } = {
     width: "100%",
     minWidth: 0,
     color: THEME.text,
+  },
+
+    inputWrapError: {
+    border: "1px solid rgba(190,18,60,0.48)",
+    boxShadow:
+      "0 0 0 3px rgba(190,18,60,0.07)",
+  },
+
+  emailDomains: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "8px",
+  },
+
+  emailDomainsLabel: {
+    color: THEME.textSoft,
+    fontSize: "11px",
+    fontWeight: 700,
+  },
+
+  emailDomainsButtons: {
+    display: "flex",
+    flexWrap: "wrap",
+    gap: "7px",
+  },
+
+  emailDomainButton: {
+    border: `1px solid ${THEME.border}`,
+    borderRadius: "999px",
+    background: "white",
+    color: THEME.text,
+    padding: "8px 11px",
+    fontSize: "11px",
+    fontWeight: 800,
+    cursor: "pointer",
+  },
+
+  emailError: {
+    color: "#be123c",
+    fontSize: "11px",
+    fontWeight: 800,
+    lineHeight: 1.4,
   },
 
   urgentBox: {

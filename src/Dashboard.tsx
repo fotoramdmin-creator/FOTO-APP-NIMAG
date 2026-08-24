@@ -47,6 +47,7 @@ import {
 type DatosCliente = {
   cliente_nombre: string;
   cliente_telefono: string;
+  cliente_email: string;
   fecha_entrega: string;
   horario_entrega: string;
 };
@@ -274,6 +275,7 @@ const Dashboard = ({ session }: { session: any }) => {
   const [datosCliente, setDatosCliente] = useState<DatosCliente>({
     cliente_nombre: "",
     cliente_telefono: "",
+    cliente_email: "",
     fecha_entrega: "",
     horario_entrega: "",
   });
@@ -1004,6 +1006,7 @@ const Dashboard = ({ session }: { session: any }) => {
     setDatosCliente({
       cliente_nombre: "",
       cliente_telefono: "",
+      cliente_email: "",
       fecha_entrega: "",
       horario_entrega: "",
     });
@@ -1056,7 +1059,11 @@ const Dashboard = ({ session }: { session: any }) => {
           {
             cliente_nombre: datosCliente.cliente_nombre,
             turno_dia: turnoDia,
-            cliente_telefono: datosCliente.cliente_telefono || null,
+            cliente_telefono:
+              datosCliente.cliente_telefono || null,
+            cliente_email:
+              datosCliente.cliente_email.trim().toLowerCase() ||
+              null,
             fecha_creacion: ahora,
             fecha_entrega: pedidoEsUrgente
               ? null
