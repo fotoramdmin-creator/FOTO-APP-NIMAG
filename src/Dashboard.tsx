@@ -1,14 +1,38 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, {
+  useState,
+  useEffect,
+  useMemo,
+  useCallback,
+  useRef,
+} from "react";
 import Navbar from "./Navbar";
 import Vista1 from "./TomaPedidos/Vista1";
 import Vista2 from "./TomaPedidos/Vista2";
 import Vista3 from "./TomaPedidos/Vista3";
-import Vista4Pago from "./TomaPedidos/Vista4Pago";
+import Vista4Pago, {
+  type ResultadoPago,
+} from "./TomaPedidos/Vista4Pago";
+import PedidosPendientesModal from "./TomaPedidos/PedidosPendientesModal";
+import {
+  actualizarBorradorPedido,
+  cancelarPedidoBorrador,
+  crearBorradorPedido,
+  guardarPedidoDesdeBorrador,
+  listarBorradoresActivos,
+  obtenerBorradorActivo,
+  type PedidoBorrador,
+} from "./TomaPedidos/pedidosBorradores";
 import OrdenEnCurso1 from "./OrdenCurso/OrdenEnCurso1";
 import OrdenEnCursoDetalle from "./OrdenCurso/OrdenEnCursoDetalle";
-import ProduccionLista from "./Produccion/ProduccionLista";
+import ProduccionHub from "./Produccion/ProduccionHub";
 import ProduccionDetalle from "./Produccion/ProduccionDetalle";
+import ProduccionServicioDetalle from "./Produccion/ProduccionServicioDetalle";
 import Entrega from "./Entrega/Entrega";
+import ServiciosInicio from "./Servicios/ServiciosInicio";
+import NuevoServicio from "./Servicios/NuevoServicio";
+import ServicioDetalle from "./Servicios/ServicioDetalle";
+import ServiciosCalendario from "./Servicios/ServiciosCalendario";
+import { ServicioCreado } from "./Servicios/serviciosTypes";
 import RetirosCajaAdmin from "./Retiros/RetirosCajaAdmin";
 import CuentasLista from "./Cuentas/CuentasLista";
 import CuentasDetalle from "./Cuentas/CuentasDetalle";
@@ -107,6 +131,10 @@ type PedidoResumen = {
   fecha_entrega: string | null;
   horario_entrega: string | null;
   urgente: boolean | null;
+  total_bruto: number | null;
+  total_final: number | null;
+  total_pagado: number | null;
+  descuento: number | null;
   resta: number | null;
   entregado: boolean | null;
   p_2listo: boolean | null;
@@ -250,6 +278,16 @@ const ConfiguracionHome = ({
   );
 };
 
+const BORRADOR_ACTIVO_STORAGE_KEY =
+  "pedidoBorradorActivoId";
+
+const VISTAS_CAPTURA_PEDIDO = new Set([
+  "Toma Pedidos",
+  "Cliente",
+  "Vista3",
+  "Vista4",
+]);
+
 const Dashboard = ({ session }: { session: any }) => {
   const [nombreParaMostrar, setNombreParaMostrar] =
     useState<string>("Cargando...");
@@ -283,7 +321,55 @@ const Dashboard = ({ session }: { session: any }) => {
   const [carrito, setCarrito] = useState<ItemCarrito[]>([]);
   const [guardandoPedido, setGuardandoPedido] = useState(false);
   const [descuentoManual, setDescuentoManual] = useState(0);
-  const [pedidoCreado, setPedidoCreado] = useState<PedidoCreado | null>(null);
+  const [pedidoCreado, setPedidoCreado] =
+    useState<PedidoCreado | null>(null);
+  const [borradorActivoId, setBorradorActivoId] =
+    useState<string | null>(() =>
+      localStorage.getItem(
+        BORRADOR_ACTIVO_STORAGE_KEY
+      )
+    );
+
+  const [
+    borradoresPendientes,
+    setBorradoresPendientes,
+  ] = useState<PedidoBorrador[]>([]);
+
+  const [
+    mostrarBorradoresPendientes,
+    setMostrarBorradoresPendientes,
+  ] = useState(false);
+
+  const [
+    procesandoBorradorId,
+    setProcesandoBorradorId,
+  ] = useState<string | null>(null);
+
+  const [
+    borradorInicializado,
+    setBorradorInicializado,
+  ] = useState(false);
+
+    const guardandoPedidoRef = useRef(false);
+
+  const creandoBorradorRef =
+    useRef<Promise<PedidoBorrador> | null>(
+      null
+    );
+
+  const guardadoBorradorTimerRef =
+    useRef<number | null>(null);
+  const [servicioCreado, setServicioCreado] =
+    useState<ServicioCreado | null>(null);
+  const [servicioSeleccionado, setServicioSeleccionado] =
+    useState<string | null>(null);
+
+  const [resultadoPagoServicio, setResultadoPagoServicio] =
+    useState<ResultadoPago | null>(null);
+
+  const [origenPagoServicio, setOrigenPagoServicio] = useState<
+    "CONTRATACION" | "ABONO" | null
+  >(null);
 
   const [pedidosResumen, setPedidosResumen] = useState<PedidoResumen[]>([]);
   const [recados, setRecados] = useState<Recado[]>([]);
@@ -333,13 +419,44 @@ const Dashboard = ({ session }: { session: any }) => {
       const { data, error } = await supabase
         .from("pedidos")
         .select(
-          "id, cliente_nombre, fecha_entrega, horario_entrega, urgente, resta, entregado, p_2listo, p3_concluido, fecha_inicio_urgente, fecha_creacion, detalles_pedido(n_toma, retocado, impreso, calendario)"
+          "id, cliente_nombre, fecha_entrega, horario_entrega, urgente, total_bruto, total_final, total_pagado, descuento, resta, entregado, p_2listo, p3_concluido, fecha_inicio_urgente, fecha_creacion, detalles_pedido(n_toma, retocado, impreso, calendario)"
         )
         .order("fecha_creacion", { ascending: false })
         .limit(160);
 
-      if (error) throw error;
-      setPedidosResumen((Array.isArray(data) ? data : []) as PedidoResumen[]);
+          if (error) throw error;
+
+      const pedidosCargados = (
+        Array.isArray(data) ? data : []
+      ) as PedidoResumen[];
+
+      const pedidosAutorizados =
+        pedidosCargados.filter((pedido) => {
+          const tienePago =
+            Number(
+              pedido.total_pagado || 0
+            ) > 0;
+
+          const esCortesia =
+            Number(
+              pedido.total_bruto || 0
+            ) > 0 &&
+            Number(
+              pedido.total_final || 0
+            ) === 0 &&
+            Number(
+              pedido.descuento || 0
+            ) >=
+              Number(
+                pedido.total_bruto || 0
+              );
+
+          return tienePago || esCortesia;
+        });
+
+      setPedidosResumen(
+        pedidosAutorizados
+      );
     } catch (error) {
       console.warn("No se pudo cargar resumen dashboard", error);
     }
@@ -973,10 +1090,519 @@ const Dashboard = ({ session }: { session: any }) => {
     return () => window.clearInterval(timer);
   }, [dashboardCards.length]);
   useEffect(() => {
-    localStorage.setItem("vistaActiva", vistaActiva);
+    localStorage.setItem(
+      "vistaActiva",
+      vistaActiva
+    );
   }, [vistaActiva]);
 
-  const currentCard = dashboardCards[slideActual] || dashboardCards[0];
+  const aplicarBorrador = useCallback(
+    (borrador: PedidoBorrador) => {
+      const datosRecuperados = {
+        cliente_nombre:
+          borrador.datos_cliente
+            ?.cliente_nombre || "",
+        cliente_telefono:
+          borrador.datos_cliente
+            ?.cliente_telefono || "",
+        cliente_email:
+          borrador.datos_cliente
+            ?.cliente_email || "",
+        fecha_entrega:
+          borrador.datos_cliente
+            ?.fecha_entrega || "",
+        horario_entrega:
+          borrador.datos_cliente
+            ?.horario_entrega || "",
+      };
+
+      const carritoRecuperado =
+        Array.isArray(borrador.carrito)
+          ? borrador.carrito
+          : [];
+
+      const totalBruto =
+        carritoRecuperado.reduce(
+          (total, item) =>
+            total +
+            Number(item.total || 0),
+          0
+        );
+
+      setDatosCliente(datosRecuperados);
+      setCarrito(carritoRecuperado);
+      setDescuentoManual(
+        Number(borrador.descuento || 0)
+      );
+
+      setBorradorActivoId(borrador.id);
+      localStorage.setItem(
+        BORRADOR_ACTIVO_STORAGE_KEY,
+        borrador.id
+      );
+
+      if (borrador.pedido_id) {
+        setPedidoCreado({
+          pedidoId: borrador.pedido_id,
+          clienteNombre:
+            datosRecuperados.cliente_nombre,
+          usuarioId:
+            borrador.creado_por ||
+            undefined,
+          totalBruto,
+          descuento: Number(
+            borrador.descuento || 0
+          ),
+          totalFinal: Number(
+            borrador.total_estimado || 0
+          ),
+          pendiente: Number(
+            borrador.total_estimado || 0
+          ),
+        });
+
+        setVistaActiva("Vista4");
+      } else {
+        setPedidoCreado(null);
+
+        const pasoSeguro = [
+          "Toma Pedidos",
+          "Cliente",
+          "Vista3",
+        ].includes(borrador.paso)
+          ? borrador.paso
+          : "Toma Pedidos";
+
+        setVistaActiva(pasoSeguro);
+      }
+
+      setBorradorInicializado(true);
+      setMostrarBorradoresPendientes(false);
+    },
+    []
+  );
+
+  const crearNuevoBorrador =
+    useCallback(async () => {
+      if (
+        guardadoBorradorTimerRef.current
+      ) {
+        window.clearTimeout(
+          guardadoBorradorTimerRef.current
+        );
+
+        guardadoBorradorTimerRef.current =
+          null;
+      }
+
+      const datosVacios: DatosCliente = {
+        cliente_nombre: "",
+        cliente_telefono: "",
+        cliente_email: "",
+        fecha_entrega: "",
+        horario_entrega: "",
+      };
+
+      localStorage.removeItem(
+        BORRADOR_ACTIVO_STORAGE_KEY
+      );
+
+      setDatosCliente(datosVacios);
+      setCarrito([]);
+      setDescuentoManual(0);
+      setPedidoCreado(null);
+      setBorradorActivoId(null);
+      setBorradorInicializado(true);
+      setMostrarBorradoresPendientes(
+        false
+      );
+      setProcesandoBorradorId(null);
+      setVistaActiva("Toma Pedidos");
+    }, []);
+
+  const continuarBorrador =
+    useCallback(
+      async (borrador: PedidoBorrador) => {
+        try {
+          setProcesandoBorradorId(
+            borrador.id
+          );
+
+          const borradorActual =
+            await obtenerBorradorActivo(
+              borrador.id
+            );
+
+          if (!borradorActual) {
+            setBorradoresPendientes(
+              (prev) =>
+                prev.filter(
+                  (item) =>
+                    item.id !==
+                    borrador.id
+                )
+            );
+
+            throw new Error(
+              "Este pedido ya fue terminado o eliminado."
+            );
+          }
+
+          aplicarBorrador(
+            borradorActual
+          );
+        } catch (error: any) {
+          console.error(
+            "Error recuperando borrador:",
+            error
+          );
+
+          alert(
+            error?.message ||
+            "No se pudo recuperar el pedido."
+          );
+        } finally {
+          setProcesandoBorradorId(null);
+        }
+      },
+      [aplicarBorrador]
+    );
+
+  const cancelarBorrador =
+    useCallback(
+      async (borrador: PedidoBorrador) => {
+        const nombre =
+          borrador.datos_cliente
+            ?.cliente_nombre?.trim() ||
+          "este pedido";
+
+        const confirmado =
+          window.confirm(
+            `¿Seguro que deseas cancelar ${nombre}? Esta acción no se puede deshacer.`
+          );
+
+        if (!confirmado) return;
+
+        try {
+          setProcesandoBorradorId(
+            borrador.id
+          );
+
+          await cancelarPedidoBorrador(
+            borrador.id
+          );
+
+          const restantes =
+            borradoresPendientes.filter(
+              (item) =>
+                item.id !== borrador.id
+            );
+
+          setBorradoresPendientes(
+            restantes
+          );
+
+          if (
+            borradorActivoId ===
+            borrador.id
+          ) {
+            if (
+              guardadoBorradorTimerRef.current
+            ) {
+              window.clearTimeout(
+                guardadoBorradorTimerRef.current
+              );
+
+              guardadoBorradorTimerRef.current =
+                null;
+            }
+
+            localStorage.removeItem(
+              BORRADOR_ACTIVO_STORAGE_KEY
+            );
+
+            setBorradorActivoId(null);
+            setPedidoCreado(null);
+            setCarrito([]);
+            setDescuentoManual(0);
+            setDatosCliente({
+              cliente_nombre: "",
+              cliente_telefono: "",
+              cliente_email: "",
+              fecha_entrega: "",
+              horario_entrega: "",
+            });
+            setBorradorInicializado(false);
+          }
+
+          if (restantes.length === 0) {
+            setMostrarBorradoresPendientes(
+              false
+            );
+            setVistaActiva("Inicio");
+          }
+        } catch (error: any) {
+          console.error(
+            "Error cancelando borrador:",
+            error
+          );
+
+          alert(
+            error?.message ||
+            "No se pudo cancelar el pedido."
+          );
+        } finally {
+          setProcesandoBorradorId(null);
+        }
+      },
+      [
+        borradorActivoId,
+        borradoresPendientes,
+      ]
+    );
+
+  const prepararCapturaPedido =
+    useCallback(async () => {
+      if (
+        !perfilComp?.id ||
+        borradorInicializado
+      ) {
+        return;
+      }
+
+      try {
+        setProcesandoBorradorId(
+          "CARGANDO"
+        );
+
+        const activos =
+          await listarBorradoresActivos();
+
+        setBorradoresPendientes(
+          activos
+        );
+
+        if (activos.length === 0) {
+          await crearNuevoBorrador();
+          return;
+        }
+
+        setVistaActiva(
+          "Toma Pedidos"
+        );
+        setMostrarBorradoresPendientes(
+          true
+        );
+      } catch (error: any) {
+        console.error(
+          "Error cargando borradores:",
+          error
+        );
+
+        alert(
+          error?.message ||
+          "No se pudieron cargar los pedidos inconclusos."
+        );
+      } finally {
+        setProcesandoBorradorId(null);
+      }
+    }, [
+      perfilComp,
+      borradorInicializado,
+      crearNuevoBorrador,
+    ]);
+
+  useEffect(() => {
+    if (
+      !VISTAS_CAPTURA_PEDIDO.has(
+        vistaActiva
+      ) ||
+      borradorInicializado
+    ) {
+      return;
+    }
+
+    void prepararCapturaPedido();
+  }, [
+    vistaActiva,
+    borradorInicializado,
+    prepararCapturaPedido,
+  ]);
+
+    useEffect(() => {
+    if (
+      !borradorInicializado ||
+      borradorActivoId ||
+      !perfilComp?.id ||
+      !VISTAS_CAPTURA_PEDIDO.has(
+        vistaActiva
+      )
+    ) {
+      return;
+    }
+
+    const tieneDatosCliente =
+      Object.values(datosCliente).some(
+        (valor) =>
+          String(valor || "").trim() !== ""
+      );
+
+    const tieneContenidoReal =
+      carrito.length > 0 ||
+      tieneDatosCliente ||
+      Number(descuentoManual || 0) > 0;
+
+    if (
+      !tieneContenidoReal ||
+      creandoBorradorRef.current
+    ) {
+      return;
+    }
+
+    const promesaCreacion =
+      crearBorradorPedido({
+        usuarioId: perfilComp.id,
+        usuarioNombre:
+          perfilComp.nombre ||
+          nombreParaMostrar ||
+          undefined,
+        contenido: {
+          datosCliente,
+          carrito,
+          descuento: Number(
+            descuentoManual || 0
+          ),
+          paso: vistaActiva,
+        },
+      });
+
+    creandoBorradorRef.current =
+      promesaCreacion;
+
+    void promesaCreacion
+      .then((nuevoBorrador) => {
+        setBorradorActivoId(
+          nuevoBorrador.id
+        );
+
+        localStorage.setItem(
+          BORRADOR_ACTIVO_STORAGE_KEY,
+          nuevoBorrador.id
+        );
+
+        setBorradoresPendientes(
+          (prev) => [
+            nuevoBorrador,
+            ...prev.filter(
+              (item) =>
+                item.id !==
+                nuevoBorrador.id
+            ),
+          ]
+        );
+      })
+      .catch((error) => {
+        console.error(
+          "Error iniciando autoguardado:",
+          error
+        );
+      })
+      .finally(() => {
+        if (
+          creandoBorradorRef.current ===
+          promesaCreacion
+        ) {
+          creandoBorradorRef.current =
+            null;
+        }
+      });
+  }, [
+    borradorInicializado,
+    borradorActivoId,
+    perfilComp,
+    nombreParaMostrar,
+    vistaActiva,
+    datosCliente,
+    carrito,
+    descuentoManual,
+  ]);
+
+  useEffect(() => {
+    if (
+      !borradorInicializado ||
+      !borradorActivoId ||
+      !VISTAS_CAPTURA_PEDIDO.has(
+        vistaActiva
+      )
+    ) {
+      return;
+    }
+
+    if (
+      guardadoBorradorTimerRef.current
+    ) {
+      window.clearTimeout(
+        guardadoBorradorTimerRef.current
+      );
+    }
+
+    guardadoBorradorTimerRef.current =
+      window.setTimeout(async () => {
+        try {
+          const actualizado =
+            await actualizarBorradorPedido(
+              {
+                borradorId:
+                  borradorActivoId,
+                contenido: {
+                  datosCliente,
+                  carrito,
+                  descuento:
+                    descuentoManual,
+                  paso: vistaActiva,
+                },
+              }
+            );
+
+          setBorradoresPendientes(
+            (prev) => [
+              actualizado,
+              ...prev.filter(
+                (item) =>
+                  item.id !==
+                  actualizado.id
+              ),
+            ]
+          );
+        } catch (error) {
+          console.error(
+            "Error guardando borrador:",
+            error
+          );
+        }
+      }, 650);
+
+    return () => {
+      if (
+        guardadoBorradorTimerRef.current
+      ) {
+        window.clearTimeout(
+          guardadoBorradorTimerRef.current
+        );
+      }
+    };
+  }, [
+    borradorInicializado,
+    borradorActivoId,
+    vistaActiva,
+    datosCliente,
+    carrito,
+    descuentoManual,
+  ]);
+
+  const currentCard =
+    dashboardCards[slideActual] ||
+    dashboardCards[0];
 
   const accesosAdmin: AdminAccess[] = [
     {
@@ -1003,6 +1629,32 @@ const Dashboard = ({ session }: { session: any }) => {
   ];
 
   const reiniciarFlujoPedido = () => {
+    if (
+      guardadoBorradorTimerRef.current
+    ) {
+      window.clearTimeout(
+        guardadoBorradorTimerRef.current
+      );
+
+      guardadoBorradorTimerRef.current =
+        null;
+    }
+
+    if (borradorActivoId) {
+      setBorradoresPendientes(
+        (prev) =>
+          prev.filter(
+            (borrador) =>
+              borrador.id !==
+              borradorActivoId
+          )
+      );
+    }
+
+    localStorage.removeItem(
+      BORRADOR_ACTIVO_STORAGE_KEY
+    );
+
     setDatosCliente({
       cliente_nombre: "",
       cliente_telefono: "",
@@ -1010,137 +1662,189 @@ const Dashboard = ({ session }: { session: any }) => {
       fecha_entrega: "",
       horario_entrega: "",
     });
+
     setCarrito([]);
     setDescuentoManual(0);
     setPedidoCreado(null);
+    setBorradorActivoId(null);
+    setBorradorInicializado(false);
+    setMostrarBorradoresPendientes(false);
+    setProcesandoBorradorId(null);
+
+    guardandoPedidoRef.current = false;
   };
 
   const confirmarPedido = async () => {
-    if (guardandoPedido) return;
+    if (
+      guardandoPedidoRef.current ||
+      guardandoPedido
+    ) {
+      return;
+    }
+
+    guardandoPedidoRef.current = true;
+
     try {
       setGuardandoPedido(true);
 
-      const ahora = new Date().toISOString();
-      const hoyTurno = new Date().toLocaleDateString("en-CA");
+      if (
+        guardadoBorradorTimerRef.current
+      ) {
+        window.clearTimeout(
+          guardadoBorradorTimerRef.current
+        );
 
-      const { count, error: errorTurno } = await supabase
-        .from("pedidos")
-        .select("id", { count: "exact", head: true })
-        .gte("fecha_creacion", `${hoyTurno}T00:00:00`)
-        .lt("fecha_creacion", `${hoyTurno}T23:59:59`);
+        guardadoBorradorTimerRef.current =
+          null;
+      }
 
-      if (errorTurno) throw errorTurno;
-
-      const turnoDia = `A${String((count || 0) + 1).padStart(3, "0")}`;
-
-      const pedidoEsUrgente = carrito.some((item) => item.esUrgente);
-
-      const itemConCapturista = carrito.find(
-        (item) => item.usuarioId && item.usuarioNombre
-      );
+      const itemConCapturista =
+        carrito.find(
+          (item) =>
+            item.usuarioId &&
+            item.usuarioNombre
+        );
 
       const capturistaId =
-        itemConCapturista?.usuarioId || perfilComp?.id || null;
+        itemConCapturista?.usuarioId ||
+        perfilComp?.id ||
+        undefined;
 
       const capturistaNombre =
-        itemConCapturista?.usuarioNombre || perfilComp?.nombre || null;
+        itemConCapturista?.usuarioNombre ||
+        perfilComp?.nombre ||
+        nombreParaMostrar ||
+        undefined;
 
-      const totalBruto = carrito.reduce(
-        (acc, item) => acc + Number(item.total || 0),
-        0
-      );
+      const contenidoActual = {
+        datosCliente,
+        carrito,
+        descuento: Number(
+          descuentoManual || 0
+        ),
+        paso: "Vista3",
+      };
 
-      const descuento = Number(descuentoManual || 0);
-      const totalFinal = Math.max(totalBruto - descuento, 0);
+          let borradorId =
+        borradorActivoId;
 
-      const { data: pedidoInsertado, error: errorPedido } = await supabase
-        .from("pedidos")
-        .insert([
-          {
-            cliente_nombre: datosCliente.cliente_nombre,
-            turno_dia: turnoDia,
-            cliente_telefono:
-              datosCliente.cliente_telefono || null,
-            cliente_email:
-              datosCliente.cliente_email.trim().toLowerCase() ||
-              null,
-            fecha_creacion: ahora,
-            fecha_entrega: pedidoEsUrgente
-              ? null
-              : datosCliente.fecha_entrega || null,
-            horario_entrega: pedidoEsUrgente
-              ? "15 A 25 MINUTOS"
-              : datosCliente.horario_entrega || null,
-            urgente: pedidoEsUrgente,
-            descuento,
-            total_bruto: totalBruto,
-            total_final: totalFinal,
-            creado_por: capturistaId,
-            creado_por_nombre: capturistaNombre,
-            resta: totalFinal,
-            pagado: false,
-            p3_concluido: false,
-            entregado: false,
-            created_at: ahora,
-            updated_at: ahora,
-            anticipo: 0,
-            liquidacion: 0,
-            total_pagado: 0,
-            fecha_inicio_urgente: pedidoEsUrgente ? ahora : null,
-          },
-        ])
-        .select()
-        .single();
+      if (
+        !borradorId &&
+        creandoBorradorRef.current
+      ) {
+        const borradorEnCreacion =
+          await creandoBorradorRef.current;
 
-      if (errorPedido) throw errorPedido;
+        borradorId =
+          borradorEnCreacion.id;
 
-      const detalles = carrito.map((item) => ({
-        pedido_id: pedidoInsertado.id,
-        cliente_nombre: datosCliente.cliente_nombre || null,
-        tamano: item.tamano,
-        tipo: item.tipo || null,
-        cantidad: Number(item.cantidad || 0),
-        papel: item.esKenfor ? "KENFOR" : "NORMAL",
-        especificaciones: item.especificaciones || null,
-        subtotal: Number(item.total || 0),
-        precio_unitario:
-          Number(item.cantidad || 0) > 0
-            ? Number(item.total || 0) / Number(item.cantidad || 1)
-            : Number(item.total || 0),
-        urgente: item.esUrgente || false,
-        retocado: false,
-        impreso: false,
-        calendario: false,
-        creado_por: item.usuarioId || capturistaId,
-        created_at: ahora,
-        updated_at: ahora,
-        n_toma: null,
-      }));
+        setBorradorActivoId(
+          borradorEnCreacion.id
+        );
 
-      const { error: errorDetalles } = await supabase
-        .from("detalles_pedido")
-        .insert(detalles);
+        localStorage.setItem(
+          BORRADOR_ACTIVO_STORAGE_KEY,
+          borradorEnCreacion.id
+        );
+      }
 
-      if (errorDetalles) throw errorDetalles;
+      let borradorGuardado:
+        PedidoBorrador;
+
+      if (borradorId) {
+        borradorGuardado =
+          await actualizarBorradorPedido({
+            borradorId,
+            contenido: contenidoActual,
+            usuarioId: capturistaId,
+            usuarioNombre:
+              capturistaNombre,
+          });
+      } else {
+        borradorGuardado =
+          await crearBorradorPedido({
+            usuarioId: capturistaId,
+            usuarioNombre:
+              capturistaNombre,
+            contenido: contenidoActual,
+          });
+
+        borradorId =
+          borradorGuardado.id;
+
+        setBorradorActivoId(
+          borradorId
+        );
+
+        localStorage.setItem(
+          BORRADOR_ACTIVO_STORAGE_KEY,
+          borradorId
+        );
+      }
+
+      const resultado =
+        await guardarPedidoDesdeBorrador({
+          borradorId,
+          usuarioId: capturistaId,
+          usuarioNombre:
+            capturistaNombre,
+        });
 
       setPedidoCreado({
-        pedidoId: pedidoInsertado.id,
-        clienteNombre: datosCliente.cliente_nombre,
-        usuarioId: capturistaId || undefined,
-        totalBruto,
-        descuento,
-        totalFinal,
-        pendiente: totalFinal,
+        pedidoId: resultado.pedidoId,
+        clienteNombre:
+          resultado.clienteNombre,
+        usuarioId:
+          resultado.usuarioId,
+        totalBruto:
+          Number(resultado.totalBruto || 0),
+        descuento:
+          Number(resultado.descuento || 0),
+        totalFinal:
+          Number(resultado.totalFinal || 0),
+        pendiente:
+          Number(resultado.pendiente || 0),
       });
 
+      setBorradoresPendientes(
+        (prev) => [
+          {
+            ...borradorGuardado,
+            pedido_id:
+              resultado.pedidoId,
+            estado:
+              "PENDIENTE_PAGO",
+            paso: "Vista4",
+            total_estimado:
+              Number(
+                resultado.totalFinal || 0
+              ),
+          },
+          ...prev.filter(
+            (item) =>
+              item.id !==
+              borradorGuardado.id
+          ),
+        ]
+      );
+
       setVistaActiva("Vista4");
-    } catch (error) {
-      console.error(error);
-      alert("No se pudo guardar el pedido");
+    } catch (error: any) {
+      console.error(
+        "Error guardando pedido:",
+        error
+      );
+
+      alert(
+        error?.message ||
+        "No se pudo guardar el pedido."
+      );
     } finally {
+      guardandoPedidoRef.current = false;
       setGuardandoPedido(false);
     }
   };
+
 
   const finalizarFlujoCompleto = () => {
     alert("Pedido finalizado correctamente");
@@ -1156,6 +1860,27 @@ const Dashboard = ({ session }: { session: any }) => {
         setVista={setVistaActiva}
         ocultarNavbar={ocultarNavbar}
       />
+
+      {mostrarBorradoresPendientes &&
+        borradoresPendientes.length > 0 ? (
+        <PedidosPendientesModal
+          borradores={borradoresPendientes}
+          procesandoId={procesandoBorradorId}
+          onContinuar={(borrador) => {
+            void continuarBorrador(borrador);
+          }}
+          onNuevo={() => {
+            void crearNuevoBorrador();
+          }}
+          onCancelar={(borrador) => {
+            void cancelarBorrador(borrador);
+          }}
+          onCerrar={() => {
+            setMostrarBorradoresPendientes(false);
+            setVistaActiva("Inicio");
+          }}
+        />
+      ) : null}
 
       <main style={styles.mainContent}>
         <AnimatePresence mode="wait">
@@ -1282,335 +2007,335 @@ const Dashboard = ({ session }: { session: any }) => {
                 <h2 style={styles.sectionTitle}>Flujo del estudio</h2>
 
                 <div style={styles.workflowGrid}>
-                                  {estadoEstudio
+                  {estadoEstudio
                     .filter(
                       (item) =>
                         item.cantidad > 0 || item.view === "Entrega"
                     )
                     .map((item, index) => (
-                    <motion.div
-                      key={item.label}
-                      style={{
-                        ...styles.workflowCard,
-                        borderColor:
-                          item.view === "Entrega"
-                            ? "rgba(85,107,47,0.48)"
-                            : `${item.color}24`,
-                        background:
-                          item.view === "Entrega"
-                            ? "linear-gradient(145deg, #f3f8ec 0%, #e6efd9 55%, #f7faf2 100%)"
-                            : styles.workflowCard.background,
-                      }}
-                      initial={{ opacity: 0, y: 16 }}
-                      animate={
-                        item.view === "Entrega"
-                          ? {
-                            opacity: 1,
-                            y: 0,
-                            scale: [1, 1.008, 1],
-                            borderColor: [
-                              "rgba(85,107,47,0.34)",
-                              "rgba(85,107,47,0.78)",
-                              "rgba(85,107,47,0.34)",
-                            ],
-                            boxShadow: [
-                              "0 14px 34px rgba(85,107,47,0.08)",
-                              "0 19px 44px rgba(85,107,47,0.22)",
-                              "0 14px 34px rgba(85,107,47,0.08)",
-                            ],
-                          }
-                          : {
-                            opacity: 1,
-                            y: 0,
-                            scale: 1,
-                          }
-                      }
-                      transition={
-                        item.view === "Entrega"
-                          ? {
-                            opacity: {
-                              duration: 0.3,
-                              delay: index * 0.07,
-                            },
-                            y: {
-                              duration: 0.3,
-                              delay: index * 0.07,
-                            },
-                            scale: {
-                              duration: 2.2,
-                              repeat: Infinity,
-                              repeatDelay: 2.5,
-                              ease: "easeInOut",
-                            },
-                            borderColor: {
-                              duration: 2.2,
-                              repeat: Infinity,
-                              repeatDelay: 2.5,
-                              ease: "easeInOut",
-                            },
-                            boxShadow: {
-                              duration: 2.2,
-                              repeat: Infinity,
-                              repeatDelay: 2.5,
-                              ease: "easeInOut",
-                            },
-                          }
-                          : {
-                            duration: 0.3,
-                            delay: index * 0.07,
-                          }
-                      }
-                      whileHover={{
-                        y: -4,
-                        boxShadow:
-                          item.view === "Entrega"
-                            ? "0 22px 48px rgba(85,107,47,0.24)"
-                            : "0 20px 42px rgba(0,0,0,0.065)",
-                      }}
-                    >
-
-                      <div
+                      <motion.div
+                        key={item.label}
                         style={{
-                          ...styles.workflowCardTop,
-                          position: "relative",
-                          zIndex: 1,
+                          ...styles.workflowCard,
+                          borderColor:
+                            item.view === "Entrega"
+                              ? "rgba(85,107,47,0.48)"
+                              : `${item.color}24`,
+                          background:
+                            item.view === "Entrega"
+                              ? "linear-gradient(145deg, #f3f8ec 0%, #e6efd9 55%, #f7faf2 100%)"
+                              : styles.workflowCard.background,
+                        }}
+                        initial={{ opacity: 0, y: 16 }}
+                        animate={
+                          item.view === "Entrega"
+                            ? {
+                              opacity: 1,
+                              y: 0,
+                              scale: [1, 1.008, 1],
+                              borderColor: [
+                                "rgba(85,107,47,0.34)",
+                                "rgba(85,107,47,0.78)",
+                                "rgba(85,107,47,0.34)",
+                              ],
+                              boxShadow: [
+                                "0 14px 34px rgba(85,107,47,0.08)",
+                                "0 19px 44px rgba(85,107,47,0.22)",
+                                "0 14px 34px rgba(85,107,47,0.08)",
+                              ],
+                            }
+                            : {
+                              opacity: 1,
+                              y: 0,
+                              scale: 1,
+                            }
+                        }
+                        transition={
+                          item.view === "Entrega"
+                            ? {
+                              opacity: {
+                                duration: 0.3,
+                                delay: index * 0.07,
+                              },
+                              y: {
+                                duration: 0.3,
+                                delay: index * 0.07,
+                              },
+                              scale: {
+                                duration: 2.2,
+                                repeat: Infinity,
+                                repeatDelay: 2.5,
+                                ease: "easeInOut",
+                              },
+                              borderColor: {
+                                duration: 2.2,
+                                repeat: Infinity,
+                                repeatDelay: 2.5,
+                                ease: "easeInOut",
+                              },
+                              boxShadow: {
+                                duration: 2.2,
+                                repeat: Infinity,
+                                repeatDelay: 2.5,
+                                ease: "easeInOut",
+                              },
+                            }
+                            : {
+                              duration: 0.3,
+                              delay: index * 0.07,
+                            }
+                        }
+                        whileHover={{
+                          y: -4,
+                          boxShadow:
+                            item.view === "Entrega"
+                              ? "0 22px 48px rgba(85,107,47,0.24)"
+                              : "0 20px 42px rgba(0,0,0,0.065)",
                         }}
                       >
+
                         <div
                           style={{
-                            ...styles.workflowIcon,
-                            backgroundColor: item.bg,
+                            ...styles.workflowCardTop,
+                            position: "relative",
+                            zIndex: 1,
+                          }}
+                        >
+                          <div
+                            style={{
+                              ...styles.workflowIcon,
+                              backgroundColor: item.bg,
+                              color: item.color,
+                            }}
+                          >
+                            {item.icon}
+                          </div>
+
+                          <div style={styles.workflowSummary}>
+                            <div style={styles.workflowLabel}>{item.label}</div>
+
+                            <div style={styles.workflowCountRow}>
+                              <span
+                                style={{
+                                  ...styles.workflowCount,
+                                  color: item.color,
+                                }}
+                              >
+                                {item.cantidad}
+                              </span>
+
+                              <span style={styles.workflowDetail}>
+                                {item.detail}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {item.view === "Entrega" ? (
+                          <div style={styles.workflowSearch}>
+                            <Search
+                              size={16}
+                              color="#8b6f47"
+                              style={styles.workflowSearchIcon}
+                            />
+
+                            <input
+                              type="search"
+                              value={busquedaFlujoEntrega}
+                              onChange={(event) =>
+                                setBusquedaFlujoEntrega(event.target.value)
+                              }
+                              placeholder="Buscar nombre o número de toma..."
+                              aria-label="Buscar pedido listo para entregar"
+                              style={styles.workflowSearchInput}
+                            />
+                          </div>
+                        ) : null}
+
+                        {item.pedidos.length > 0 ? (
+                          <div style={styles.workflowList}>
+                            {item.pedidos
+                              .slice(
+                                0,
+                                item.view === "Entrega" &&
+                                  busquedaFlujoEntrega.trim()
+                                  ? 5
+                                  : 3
+                              )
+                              .map((pedido) => {
+                                const tomas = obtenerTomasPedido(pedido);
+                                const estado = obtenerEstadoPedido(pedido);
+
+                                const textoEstado =
+                                  estado.etapa === "PRODUCCION"
+                                    ? estado.texto.replace(
+                                      "En Producción · falta ",
+                                      "Falta: "
+                                    )
+                                    : estado.texto;
+
+                                let detalleFila = textoEstado;
+
+                                if (item.view === "Entrega") {
+                                  if (estado.etapa === "ORDEN") {
+                                    detalleFila = "Esperando retrato";
+                                  } else if (estado.etapa === "PRODUCCION") {
+                                    detalleFila = textoEstado;
+                                  } else if (pedido.urgente === true) {
+                                    const fechaLlegada = new Date(
+                                      pedido.fecha_inicio_urgente ||
+                                      pedido.fecha_creacion ||
+                                      ""
+                                    );
+
+                                    const horaLlegada = Number.isNaN(
+                                      fechaLlegada.getTime()
+                                    )
+                                      ? ""
+                                      : fechaLlegada.toLocaleTimeString("es-MX", {
+                                        hour: "numeric",
+                                        minute: "2-digit",
+                                      });
+
+                                    detalleFila = horaLlegada
+                                      ? `Urgente · llegó ${horaLlegada}`
+                                      : "Urgente · listo para entregar";
+                                  } else if (
+                                    pedido.fecha_entrega === todayYMD()
+                                  ) {
+                                    detalleFila = `Hoy · ${pedido.horario_entrega || "sin horario"
+                                      }`;
+                                  } else {
+                                    detalleFila = pedido.fecha_entrega
+                                      ? `Entrega ${new Date(
+                                        `${pedido.fecha_entrega}T00:00:00`
+                                      ).toLocaleDateString("es-MX", {
+                                        day: "2-digit",
+                                        month: "short",
+                                      })}`
+                                      : "Listo para entregar";
+                                  }
+                                }
+
+                                return (
+                                  <motion.button
+                                    key={pedido.id}
+                                    type="button"
+                                    onClick={() => abrirPedidoDesdeFlujo(pedido)}
+                                    style={{
+                                      ...styles.workflowOrder,
+                                      backgroundColor:
+                                        item.view === "Entrega" &&
+                                          estado.etapa !== "ENTREGA"
+                                          ? "rgba(234,179,8,0.10)"
+                                          : "transparent",
+                                      border:
+                                        item.view === "Entrega" &&
+                                          estado.etapa !== "ENTREGA"
+                                          ? "1px solid rgba(202,138,4,0.26)"
+                                          : "none",
+                                      borderBottom:
+                                        item.view === "Entrega" &&
+                                          estado.etapa !== "ENTREGA"
+                                          ? "1px solid rgba(202,138,4,0.26)"
+                                          : "1px solid rgba(139,111,71,0.09)",
+                                      boxShadow:
+                                        item.view === "Entrega" &&
+                                          estado.etapa !== "ENTREGA"
+                                          ? "0 7px 18px rgba(202,138,4,0.07)"
+                                          : "none",
+                                    }}
+                                    whileHover={{
+                                      x: 3,
+                                      backgroundColor:
+                                        item.view === "Entrega" &&
+                                          estado.etapa !== "ENTREGA"
+                                          ? "rgba(234,179,8,0.17)"
+                                          : item.bg,
+                                    }}
+                                    whileTap={{ scale: 0.985 }}
+                                  >
+                                    <div style={styles.workflowOrderText}>
+                                      <div style={styles.workflowOrderNameRow}>
+                                        <span style={styles.workflowOrderName}>
+                                          {pedido.cliente_nombre || "Sin nombre"}
+                                        </span>
+
+                                        {item.view === "Entrega" &&
+                                          estado.etapa !== "ENTREGA" ? (
+                                          <span
+                                            style={{
+                                              ...styles.workflowUrgentBadge,
+                                              backgroundColor:
+                                                "rgba(234,179,8,0.16)",
+                                              color: "#8a6200",
+                                            }}
+                                          >
+                                            {estado.etapa === "ORDEN"
+                                              ? "Esperando retrato"
+                                              : "En producción"}
+                                          </span>
+                                        ) : null}
+
+                                        {pedido.urgente === true ? (
+                                          <span style={styles.workflowUrgentBadge}>
+                                            Urgente
+                                          </span>
+                                        ) : null}
+                                      </div>
+
+                                      <div style={styles.workflowOrderMeta}>
+                                        <span>
+                                          {tomas.length
+                                            ? `Toma: ${tomas.join(" · ")}`
+                                            : "Sin número de toma"}
+                                        </span>
+
+                                        <span style={styles.workflowMetaSeparator}>
+                                          ·
+                                        </span>
+
+                                        <span>{detalleFila}</span>
+                                      </div>
+                                    </div>
+
+                                    <ArrowUpRight
+                                      size={16}
+                                      style={{
+                                        ...styles.workflowOrderArrow,
+                                        color: item.color,
+                                      }}
+                                    />
+                                  </motion.button>
+                                );
+                              })}
+                          </div>
+                        ) : (
+                          <div style={styles.workflowEmpty}>
+                            {item.view === "Entrega" &&
+                              busquedaFlujoEntrega.trim()
+                              ? "No encontramos pedidos con ese nombre o número de toma"
+                              : "Todo está al corriente"}
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setVistaActiva(item.view)}
+                          style={{
+                            ...styles.workflowFooter,
                             color: item.color,
                           }}
                         >
-                          {item.icon}
-                        </div>
-
-                        <div style={styles.workflowSummary}>
-                          <div style={styles.workflowLabel}>{item.label}</div>
-
-                          <div style={styles.workflowCountRow}>
-                            <span
-                              style={{
-                                ...styles.workflowCount,
-                                color: item.color,
-                              }}
-                            >
-                              {item.cantidad}
-                            </span>
-
-                            <span style={styles.workflowDetail}>
-                              {item.detail}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {item.view === "Entrega" ? (
-                        <div style={styles.workflowSearch}>
-                          <Search
-                            size={16}
-                            color="#8b6f47"
-                            style={styles.workflowSearchIcon}
-                          />
-
-                          <input
-                            type="search"
-                            value={busquedaFlujoEntrega}
-                            onChange={(event) =>
-                              setBusquedaFlujoEntrega(event.target.value)
-                            }
-                            placeholder="Buscar nombre o número de toma..."
-                            aria-label="Buscar pedido listo para entregar"
-                            style={styles.workflowSearchInput}
-                          />
-                        </div>
-                      ) : null}
-
-                      {item.pedidos.length > 0 ? (
-                        <div style={styles.workflowList}>
-                          {item.pedidos
-                            .slice(
-                              0,
-                              item.view === "Entrega" &&
-                                busquedaFlujoEntrega.trim()
-                                ? 5
-                                : 3
-                            )
-                            .map((pedido) => {
-                              const tomas = obtenerTomasPedido(pedido);
-                              const estado = obtenerEstadoPedido(pedido);
-
-                              const textoEstado =
-                                estado.etapa === "PRODUCCION"
-                                  ? estado.texto.replace(
-                                    "En Producción · falta ",
-                                    "Falta: "
-                                  )
-                                  : estado.texto;
-
-                              let detalleFila = textoEstado;
-
-                              if (item.view === "Entrega") {
-                                if (estado.etapa === "ORDEN") {
-                                  detalleFila = "Esperando retrato";
-                                } else if (estado.etapa === "PRODUCCION") {
-                                  detalleFila = textoEstado;
-                                } else if (pedido.urgente === true) {
-                                  const fechaLlegada = new Date(
-                                    pedido.fecha_inicio_urgente ||
-                                    pedido.fecha_creacion ||
-                                    ""
-                                  );
-
-                                  const horaLlegada = Number.isNaN(
-                                    fechaLlegada.getTime()
-                                  )
-                                    ? ""
-                                    : fechaLlegada.toLocaleTimeString("es-MX", {
-                                      hour: "numeric",
-                                      minute: "2-digit",
-                                    });
-
-                                  detalleFila = horaLlegada
-                                    ? `Urgente · llegó ${horaLlegada}`
-                                    : "Urgente · listo para entregar";
-                                } else if (
-                                  pedido.fecha_entrega === todayYMD()
-                                ) {
-                                  detalleFila = `Hoy · ${pedido.horario_entrega || "sin horario"
-                                    }`;
-                                } else {
-                                  detalleFila = pedido.fecha_entrega
-                                    ? `Entrega ${new Date(
-                                      `${pedido.fecha_entrega}T00:00:00`
-                                    ).toLocaleDateString("es-MX", {
-                                      day: "2-digit",
-                                      month: "short",
-                                    })}`
-                                    : "Listo para entregar";
-                                }
-                              }
-
-                              return (
-                                <motion.button
-                                  key={pedido.id}
-                                  type="button"
-                                  onClick={() => abrirPedidoDesdeFlujo(pedido)}
-                                  style={{
-                                    ...styles.workflowOrder,
-                                    backgroundColor:
-                                      item.view === "Entrega" &&
-                                        estado.etapa !== "ENTREGA"
-                                        ? "rgba(234,179,8,0.10)"
-                                        : "transparent",
-                                    border:
-                                      item.view === "Entrega" &&
-                                        estado.etapa !== "ENTREGA"
-                                        ? "1px solid rgba(202,138,4,0.26)"
-                                        : "none",
-                                    borderBottom:
-                                      item.view === "Entrega" &&
-                                        estado.etapa !== "ENTREGA"
-                                        ? "1px solid rgba(202,138,4,0.26)"
-                                        : "1px solid rgba(139,111,71,0.09)",
-                                    boxShadow:
-                                      item.view === "Entrega" &&
-                                        estado.etapa !== "ENTREGA"
-                                        ? "0 7px 18px rgba(202,138,4,0.07)"
-                                        : "none",
-                                  }}
-                                  whileHover={{
-                                    x: 3,
-                                    backgroundColor:
-                                      item.view === "Entrega" &&
-                                        estado.etapa !== "ENTREGA"
-                                        ? "rgba(234,179,8,0.17)"
-                                        : item.bg,
-                                  }}
-                                  whileTap={{ scale: 0.985 }}
-                                >
-                                  <div style={styles.workflowOrderText}>
-                                    <div style={styles.workflowOrderNameRow}>
-                                      <span style={styles.workflowOrderName}>
-                                        {pedido.cliente_nombre || "Sin nombre"}
-                                      </span>
-
-                                      {item.view === "Entrega" &&
-                                        estado.etapa !== "ENTREGA" ? (
-                                        <span
-                                          style={{
-                                            ...styles.workflowUrgentBadge,
-                                            backgroundColor:
-                                              "rgba(234,179,8,0.16)",
-                                            color: "#8a6200",
-                                          }}
-                                        >
-                                          {estado.etapa === "ORDEN"
-                                            ? "Esperando retrato"
-                                            : "En producción"}
-                                        </span>
-                                      ) : null}
-
-                                      {pedido.urgente === true ? (
-                                        <span style={styles.workflowUrgentBadge}>
-                                          Urgente
-                                        </span>
-                                      ) : null}
-                                    </div>
-
-                                    <div style={styles.workflowOrderMeta}>
-                                      <span>
-                                        {tomas.length
-                                          ? `Toma: ${tomas.join(" · ")}`
-                                          : "Sin número de toma"}
-                                      </span>
-
-                                      <span style={styles.workflowMetaSeparator}>
-                                        ·
-                                      </span>
-
-                                      <span>{detalleFila}</span>
-                                    </div>
-                                  </div>
-
-                                  <ArrowUpRight
-                                    size={16}
-                                    style={{
-                                      ...styles.workflowOrderArrow,
-                                      color: item.color,
-                                    }}
-                                  />
-                                </motion.button>
-                              );
-                            })}
-                        </div>
-                      ) : (
-                        <div style={styles.workflowEmpty}>
-                          {item.view === "Entrega" &&
-                            busquedaFlujoEntrega.trim()
-                            ? "No encontramos pedidos con ese nombre o número de toma"
-                            : "Todo está al corriente"}
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => setVistaActiva(item.view)}
-                        style={{
-                          ...styles.workflowFooter,
-                          color: item.color,
-                        }}
-                      >
-                        <span>
-                          {item.pedidos.length > 3
-                            ? `Ver los ${item.pedidos.length} pedidos`
-                            : "Abrir sección"}
-                        </span>
-                        <ArrowRight size={15} />
-                      </button>
-                    </motion.div>
-                  ))}
+                          <span>
+                            {item.pedidos.length > 3
+                              ? `Ver los ${item.pedidos.length} pedidos`
+                              : "Abrir sección"}
+                          </span>
+                          <ArrowRight size={15} />
+                        </button>
+                      </motion.div>
+                    ))}
                 </div>
               </section>
 
@@ -1728,6 +2453,93 @@ const Dashboard = ({ session }: { session: any }) => {
               onBack={() => setVistaActiva("Inicio")}
               onRefresh={cargarRecados}
             />
+          ) : vistaActiva === "Servicios" ? (
+            <ServiciosInicio
+              onVolver={() => setVistaActiva("Inicio")}
+              onNuevoServicio={() =>
+                setVistaActiva("Nuevo Servicio")
+              }
+              onAbrirCalendario={() => {
+                setVistaActiva("Calendario Servicios");
+              }}
+              onAbrirServicio={(servicioId) => {
+                setServicioSeleccionado(servicioId);
+                setVistaActiva("Servicio Detalle");
+              }}
+            />
+          ) : vistaActiva === "Calendario Servicios" ? (
+            <ServiciosCalendario
+              onVolver={() => setVistaActiva("Servicios")}
+              onAbrirServicio={(servicioId) => {
+                setServicioSeleccionado(servicioId);
+                setVistaActiva("Servicio Detalle");
+              }}
+            />
+          ) : vistaActiva === "Servicio Detalle" &&
+            servicioSeleccionado ? (
+            <ServicioDetalle
+              servicioId={servicioSeleccionado}
+              resultadoPago={
+                resultadoPagoServicio?.servicioId ===
+                  servicioSeleccionado
+                  ? resultadoPagoServicio
+                  : null
+              }
+              origenPago={origenPagoServicio}
+              usuarioActualId={
+                perfilComp?.id || undefined
+              }
+              usuarioActualNombre={
+                perfilComp?.nombre ||
+                nombreParaMostrar ||
+                ""
+              }
+              onCerrarComprobante={() => {
+                setResultadoPagoServicio(null);
+                setOrigenPagoServicio(null);
+              }}
+              onVolver={() => {
+                setResultadoPagoServicio(null);
+                setOrigenPagoServicio(null);
+                setServicioSeleccionado(null);
+                setVistaActiva("Servicios");
+              }}
+              onRegistrarPago={(servicio) => {
+
+                setResultadoPagoServicio(null);
+                setOrigenPagoServicio("ABONO");
+
+                setServicioCreado({
+                  ...servicio,
+                  usuarioId:
+                    perfilComp?.id ||
+                    servicio.usuarioId ||
+                    undefined,
+                });
+
+                setVistaActiva("Pago Servicio");
+              }}
+            />
+          ) : vistaActiva === "Nuevo Servicio" ? (
+            <NuevoServicio
+              perfil={perfilComp}
+              onCancelar={() => setVistaActiva("Servicios")}
+              onServicioCreado={(servicio) => {
+                setResultadoPagoServicio(null);
+                setOrigenPagoServicio("CONTRATACION");
+
+                setServicioCreado({
+                  ...servicio,
+                  usuarioId:
+                    perfilComp?.id ||
+                    servicio.usuarioId ||
+                    undefined,
+                });
+
+                setServicioSeleccionado(servicio.servicioId);
+                setVistaActiva("Pago Servicio");
+              }}
+            />
           ) : vistaActiva === "Toma Pedidos" ? (
             <Vista1
               perfil={perfilComp}
@@ -1766,6 +2578,39 @@ const Dashboard = ({ session }: { session: any }) => {
               onVolver={() => setVistaActiva("Vista3")}
               onFinalizado={finalizarFlujoCompleto}
             />
+          ) : vistaActiva === "Pago Servicio" && servicioCreado ? (
+            <Vista4Pago
+              servicioId={servicioCreado.servicioId}
+              clienteNombre={servicioCreado.clienteNombre}
+              usuarioId={servicioCreado.usuarioId}
+              totalBruto={servicioCreado.totalBruto}
+              descuento={servicioCreado.descuento}
+              totalFinal={servicioCreado.totalFinal}
+              pendiente={servicioCreado.pendiente}
+              onVolver={() => {
+                setServicioCreado(null);
+                setVistaActiva(
+                  servicioSeleccionado
+                    ? "Servicio Detalle"
+                    : "Servicios"
+                );
+              }}
+              onFinalizado={(resultado) => {
+                setResultadoPagoServicio(resultado || null);
+
+                alert(
+                  `Pago del servicio ${servicioCreado.folio} registrado correctamente`
+                );
+
+                setServicioCreado(null);
+
+                setVistaActiva(
+                  servicioSeleccionado
+                    ? "Servicio Detalle"
+                    : "Servicios"
+                );
+              }}
+            />
           ) : vistaActiva === "Orden en Curso" ? (
             <OrdenEnCurso1
               setPedidoSeleccionado={setPedidoSeleccionado}
@@ -1780,9 +2625,13 @@ const Dashboard = ({ session }: { session: any }) => {
               }}
             />
           ) : vistaActiva === "Producción" ? (
-            <ProduccionLista
+            <ProduccionHub
               setPedidoSeleccionado={setPedidoSeleccionado}
               setVistaActiva={setVistaActiva}
+              onAbrirServicio={(servicioId) => {
+                setServicioSeleccionado(servicioId);
+                setVistaActiva("Producción Servicio Detalle");
+              }}
             />
           ) : vistaActiva === "Producción Detalle" ? (
             pedidoSeleccionado ? (
@@ -1794,11 +2643,28 @@ const Dashboard = ({ session }: { session: any }) => {
                 }}
               />
             ) : (
-              <ProduccionLista
+              <ProduccionHub
                 setPedidoSeleccionado={setPedidoSeleccionado}
                 setVistaActiva={setVistaActiva}
+                onAbrirServicio={(servicioId) => {
+                  setServicioSeleccionado(servicioId);
+                  setVistaActiva(
+                    "Producción Servicio Detalle"
+                  );
+                }}
               />
             )
+          ) : vistaActiva ===
+            "Producción Servicio Detalle" &&
+            servicioSeleccionado ? (
+            <ProduccionServicioDetalle
+              servicioId={servicioSeleccionado}
+              usuarioId={perfilComp?.id}
+              onVolver={() => {
+                setServicioSeleccionado(null);
+                setVistaActiva("Producción");
+              }}
+            />
           ) : vistaActiva === "Busqueda" ? (
             <BusquedaPedidos />
           ) : vistaActiva === "Editar" ? (

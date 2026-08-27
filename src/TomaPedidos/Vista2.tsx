@@ -321,7 +321,7 @@ const Vista2 = ({
                   Este pedido contiene renglones urgentes.
                 </p>
                 <p style={styles.urgentTextStrong}>
-                  Tiempo estimado de entrega: 15 a 25 minutos
+                  Tiempo estimado de entrega: 20 a 30 minutos
                 </p>
               </div>
             ) : (
@@ -581,7 +581,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     gridTemplateColumns: "1fr",
   },
 
-    emailBlockDesktop: {
+  emailBlockDesktop: {
     gridColumn: "1 / -1",
   },
 
@@ -633,7 +633,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: THEME.text,
   },
 
-    inputWrapError: {
+  inputWrapError: {
     border: "1px solid rgba(190,18,60,0.48)",
     boxShadow:
       "0 0 0 3px rgba(190,18,60,0.07)",

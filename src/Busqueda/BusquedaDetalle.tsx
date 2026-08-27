@@ -516,7 +516,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
             onChange={(v) => cambiarPedido("cliente_nombre", v.toUpperCase())}
           />
 
-                 <Field
+          <Field
             label="Teléfono"
             value={pedido.cliente_telefono || ""}
             onChange={(v) => cambiarPedido("cliente_telefono", v)}
@@ -640,7 +640,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
               cambiarPedido("urgente", v);
 
               if (v) {
-                cambiarPedido("horario_entrega", "15 A 25 MINUTOS");
+                cambiarPedido("horario_entrega", "20 A 30 MINUTOS");
               } else {
                 cambiarPedido("horario_entrega", "");
               }

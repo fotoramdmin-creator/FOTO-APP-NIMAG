@@ -58,6 +58,21 @@ type PedidoUI = PedidoRow & {
   detalles_resumen: string[];
 };
 
+type ServicioEntregaUI = {
+  id: string;
+  folio: string;
+  cliente_nombre: string;
+  cliente_telefono: string | null;
+  tipo_evento: string;
+  fecha_entrega: string | null;
+  horario_entrega: string | null;
+  total_final: number;
+  total_pagado: number;
+  resta: number;
+  estado: "LISTO_ENTREGA";
+  conceptos_resumen: string[];
+  tomas_resumen: string;
+};
 type ToastState = {
   type: "success" | "error" | "warning";
   message: string;
@@ -114,10 +129,19 @@ export default function Entrega({
   const [busqueda, setBusqueda] = useState(busquedaInicial || "");
   const [busquedaDebounced, setBusquedaDebounced] = useState("");
   const [pedidos, setPedidos] = useState<PedidoUI[]>([]);
+  const [servicios, setServicios] = useState<
+    ServicioEntregaUI[]
+  >([]);
   const [loading, setLoading] = useState(false);
+  const [loadingServicios, setLoadingServicios] =
+    useState(false);
   const [toast, setToast] = useState<ToastState>(null);
   const [liquidandoId, setLiquidandoId] = useState<string | null>(null);
   const [entregandoId, setEntregandoId] = useState<string | null>(null);
+  const [
+    entregandoServicioId,
+    setEntregandoServicioId,
+  ] = useState<string | null>(null);
   const [montoRecibido, setMontoRecibido] = useState<Record<string, string>>(
     {}
   );
@@ -347,9 +371,180 @@ export default function Entrega({
     }
   }, []);
 
+  const buscarServicios = useCallback(
+    async (texto: string) => {
+      if (!texto) {
+        setServicios([]);
+        setLoadingServicios(false);
+        return;
+      }
+
+      setLoadingServicios(true);
+
+      try {
+        const {
+          data: serviciosData,
+          error: errorServicios,
+        } = await supabase
+          .from("servicios")
+          .select(
+            `
+              id,
+              folio,
+              cliente_nombre,
+              cliente_telefono,
+              tipo_evento,
+              fecha_entrega,
+              horario_entrega,
+              total_final,
+              total_pagado,
+              resta,
+              estado
+            `
+          )
+          .eq("estado", "LISTO_ENTREGA")
+          .limit(100);
+
+        if (errorServicios) {
+          throw errorServicios;
+        }
+
+        const serviciosListos =
+          (serviciosData || []) as Omit<
+            ServicioEntregaUI,
+            "conceptos_resumen" | "tomas_resumen"
+          >[];
+
+        if (serviciosListos.length === 0) {
+          setServicios([]);
+          return;
+        }
+
+        const {
+          data: conceptosData,
+          error: errorConceptos,
+        } = await supabase
+          .from("servicios_conceptos")
+          .select(
+            `
+              servicio_id,
+              cantidad,
+              descripcion,
+              medida,
+              marco,
+              tomas_seleccionadas
+            `
+          )
+          .in(
+            "servicio_id",
+            serviciosListos.map(
+              (servicio) => servicio.id
+            )
+          );
+
+        if (errorConceptos) {
+          throw errorConceptos;
+        }
+
+        const normalizarBusqueda = (valor: unknown) =>
+          String(valor || "")
+            .toLowerCase()
+            .normalize("NFD")
+            .replace(/[\u0300-\u036f]/g, "")
+            .trim();
+
+        const textoNormalizado =
+          normalizarBusqueda(texto);
+
+        const preparados = serviciosListos
+          .map((servicio) => {
+            const conceptos = (
+              conceptosData || []
+            ).filter(
+              (concepto: any) =>
+                concepto.servicio_id ===
+                servicio.id
+            );
+
+            const conceptosResumen = conceptos.map(
+              (concepto: any) =>
+                [
+                  concepto.cantidad,
+                  concepto.descripcion,
+                  concepto.medida,
+                  concepto.marco,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")
+                  .toUpperCase()
+            );
+
+            const tomas = Array.from(
+              new Set(
+                conceptos.flatMap(
+                  (concepto: any) =>
+                    Array.isArray(
+                      concepto.tomas_seleccionadas
+                    )
+                      ? concepto.tomas_seleccionadas
+                      : []
+                )
+              )
+            ).map(String);
+
+            return {
+              ...servicio,
+              conceptos_resumen:
+                conceptosResumen,
+              tomas_resumen:
+                tomas.join(" · "),
+            } as ServicioEntregaUI;
+          })
+          .filter((servicio) => {
+            const contenido =
+              normalizarBusqueda(
+                [
+                  servicio.cliente_nombre,
+                  servicio.cliente_telefono,
+                  servicio.folio,
+                  servicio.tipo_evento,
+                  servicio.tomas_resumen,
+                ].join(" ")
+              );
+
+            return contenido.includes(
+              textoNormalizado
+            );
+          });
+
+        setServicios(preparados);
+      } catch (error) {
+        console.error(
+          "Error buscando servicios para entrega:",
+          error
+        );
+
+        setServicios([]);
+        setToast({
+          type: "error",
+          message:
+            "No se pudieron cargar los servicios",
+        });
+      } finally {
+        setLoadingServicios(false);
+      }
+    },
+    []
+  );
+
   useEffect(() => {
     buscarPedidos(busquedaDebounced);
-  }, [busquedaDebounced, buscarPedidos]);
+    buscarServicios(busquedaDebounced);
+  }, [
+    busquedaDebounced,
+    buscarPedidos,
+    buscarServicios,
+  ]);
 
   const onLiquidar = async (pedido: PedidoUI) => {
     try {
@@ -454,6 +649,85 @@ export default function Entrega({
     }
   };
 
+  const onEntregarServicio = async (
+    servicio: ServicioEntregaUI
+  ) => {
+    if (!usuarioId) {
+      setToast({
+        type: "error",
+        message:
+          "No se pudo identificar al usuario actual",
+      });
+      return;
+    }
+
+    if (Number(servicio.resta || 0) > 0.009) {
+      setToast({
+        type: "warning",
+        message:
+          "El servicio todavía tiene saldo pendiente",
+      });
+      return;
+    }
+
+    const confirmar = window.confirm(
+      `¿Confirmas que se entregó el servicio ${servicio.folio} a ${servicio.cliente_nombre}?`
+    );
+
+    if (!confirmar) return;
+
+    try {
+      setEntregandoServicioId(servicio.id);
+
+      const {
+        data: servicioEntregado,
+        error: errorEntrega,
+      } = await supabase
+        .from("servicios")
+        .update({
+          estado: "ENTREGADO",
+          entregado_at: new Date().toISOString(),
+          entregado_por: usuarioId,
+        })
+        .eq("id", servicio.id)
+        .eq("estado", "LISTO_ENTREGA")
+        .select("id")
+        .maybeSingle();
+
+      if (errorEntrega) {
+        throw errorEntrega;
+      }
+
+      if (!servicioEntregado) {
+        throw new Error(
+          "El servicio ya no estaba disponible para entrega."
+        );
+      }
+
+      setToast({
+        type: "success",
+        message:
+          "Servicio entregado correctamente",
+      });
+
+      await buscarServicios(busquedaDebounced);
+    } catch (error: any) {
+      console.error(
+        "Error entregando servicio:",
+        error
+      );
+
+      setToast({
+        type: "error",
+        message:
+          error?.message ||
+          "No se pudo entregar el servicio",
+      });
+    } finally {
+      setEntregandoServicioId(null);
+    }
+  };
+
   return (
     <div style={styles.container} className="entrega-container">
       <motion.header
@@ -525,7 +799,8 @@ export default function Entrega({
               Estamos sincronizando la información del estudio.
             </p>
           </div>
-        ) : pedidos.length > 0 ? (
+               ) : pedidos.length > 0 ||
+          servicios.length > 0 ? (
           <div style={styles.grid}>
             {pedidos.map((pedido) => (
               <CardPedido
@@ -551,8 +826,235 @@ export default function Entrega({
                 money={money}
               />
             ))}
+
+                        {servicios.map((servicio) => (
+              <motion.article
+                key={`servicio-${servicio.id}`}
+                initial={{ opacity: 0, y: 12 }}
+                animate={{ opacity: 1, y: 0 }}
+                style={{
+                  background: "#fff",
+                  border:
+                    "1px solid rgba(184,159,84,0.34)",
+                  borderRadius: 24,
+                  padding: 20,
+                  boxShadow:
+                    "0 14px 35px rgba(18,17,15,0.08)",
+                  boxSizing: "border-box",
+                }}
+                className="entrega-card"
+              >
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "flex-start",
+                    gap: 14,
+                    flexWrap: "wrap",
+                    marginBottom: 16,
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        gap: 7,
+                        flexWrap: "wrap",
+                        marginBottom: 9,
+                      }}
+                    >
+                      <span
+                        style={{
+                          background: THEME.olive,
+                          color: "#fff",
+                          padding: "5px 9px",
+                          borderRadius: 999,
+                          fontSize: 9,
+                          fontWeight: 900,
+                          letterSpacing: 0.7,
+                        }}
+                      >
+                        SERVICIO
+                      </span>
+
+                      <span
+                        style={{
+                          background:
+                            "rgba(184,159,84,0.15)",
+                          color: "#806527",
+                          padding: "5px 9px",
+                          borderRadius: 999,
+                          fontSize: 9,
+                          fontWeight: 900,
+                        }}
+                      >
+                        {servicio.folio}
+                      </span>
+                    </div>
+
+                    <h2
+                      style={{
+                        margin: "0 0 5px",
+                        color: THEME.black,
+                        fontSize: 21,
+                      }}
+                    >
+                      {servicio.cliente_nombre}
+                    </h2>
+
+                    <span
+                      style={{
+                        color: THEME.textSoft,
+                        fontSize: 12,
+                        fontWeight: 700,
+                      }}
+                    >
+                      {servicio.tipo_evento}
+                      {servicio.cliente_telefono
+                        ? ` · ${servicio.cliente_telefono}`
+                        : ""}
+                    </span>
+                  </div>
+
+                  <span
+                    style={{
+                      display: "inline-flex",
+                      alignItems: "center",
+                      gap: 6,
+                      background:
+                        "rgba(46,77,56,0.12)",
+                      color: THEME.olive,
+                      borderRadius: 999,
+                      padding: "7px 10px",
+                      fontSize: 10,
+                      fontWeight: 900,
+                    }}
+                  >
+                    <PackageCheck size={15} />
+                    LISTO PARA ENTREGAR
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 8,
+                    marginBottom: 16,
+                  }}
+                >
+                  {servicio.conceptos_resumen.map(
+                    (concepto, index) => (
+                      <div
+                        key={`${servicio.id}-${index}`}
+                        style={{
+                          borderRadius: 13,
+                          background: "#f8f5ee",
+                          padding: "11px 12px",
+                          color: THEME.black,
+                          fontSize: 12,
+                          fontWeight: 800,
+                          lineHeight: 1.45,
+                        }}
+                      >
+                        {concepto}
+                      </div>
+                    )
+                  )}
+
+                  {servicio.tomas_resumen ? (
+                    <div
+                      style={{
+                        color: "#806527",
+                        fontSize: 12,
+                        fontWeight: 900,
+                      }}
+                    >
+                      Tomas: {servicio.tomas_resumen}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                    flexWrap: "wrap",
+                    borderTop:
+                      "1px solid rgba(184,159,84,0.20)",
+                    paddingTop: 14,
+                    marginBottom: 14,
+                  }}
+                >
+                  <span
+                    style={{
+                      color: THEME.textSoft,
+                      fontSize: 12,
+                    }}
+                  >
+                    Total:{" "}
+                    <strong
+                      style={{ color: THEME.black }}
+                    >
+                      {money(servicio.total_final)}
+                    </strong>
+                  </span>
+
+                  <span
+                    style={{
+                      color:
+                        Number(servicio.resta) <= 0.009
+                          ? THEME.olive
+                          : THEME.urgent,
+                      fontSize: 12,
+                      fontWeight: 900,
+                    }}
+                  >
+                    Saldo: {money(servicio.resta)}
+                  </span>
+                </div>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    onEntregarServicio(servicio)
+                  }
+                  disabled={
+                    entregandoServicioId !== null
+                  }
+                  className="entrega-btn"
+                  style={{
+                    width: "100%",
+                    minHeight: 50,
+                    border: "none",
+                    borderRadius: 15,
+                    background: THEME.olive,
+                    color: "#fff",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 8,
+                    cursor:
+                      entregandoServicioId !== null
+                        ? "wait"
+                        : "pointer",
+                    fontSize: 12,
+                    fontWeight: 900,
+                  }}
+                >
+                  <PackageCheck size={18} />
+
+                  {entregandoServicioId ===
+                  servicio.id
+                    ? "Registrando entrega…"
+                    : "Entregar servicio"}
+                </button>
+              </motion.article>
+            ))}
           </div>
-        ) : busqueda.length > 0 ? (
+        ) : busqueda.length >
+        0 ? (
           <div style={styles.emptyState}>
             <AlertCircle size={40} color={THEME.gold} />
             <h3 style={styles.emptyTitle}>No encontramos pedidos</h3>

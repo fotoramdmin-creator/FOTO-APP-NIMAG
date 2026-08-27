@@ -37,8 +37,13 @@ type Pedido = {
   fecha_entrega: string | null;
   horario_entrega: string | null;
   urgente: boolean | null;
-  fecha_inicio_urgente: string | null;
+   fecha_inicio_urgente: string | null;
+  p_2listo: boolean | null;
   p3_concluido: boolean | null;
+  total_bruto: number | null;
+  total_final: number | null;
+  total_pagado: number | null;
+  descuento: number | null;
 };
 
 type Props = {
@@ -68,12 +73,40 @@ export default function ProduccionDetalle({ pedidoId, onBack }: Props) {
       const { data: pedidoData, error: pedidoError } = await supabase
         .from("pedidos")
         .select(
-          "id,cliente_nombre,cliente_telefono,fecha_entrega,horario_entrega,urgente,fecha_inicio_urgente,p3_concluido"
+                 "id,cliente_nombre,cliente_telefono,fecha_entrega,horario_entrega,urgente,fecha_inicio_urgente,p_2listo,p3_concluido,total_bruto,total_final,total_pagado,descuento"
         )
         .eq("id", pedidoId)
         .single();
 
-      if (pedidoError) throw pedidoError;
+          if (pedidoError) throw pedidoError;
+
+      const tienePago =
+        Number(
+          pedidoData.total_pagado || 0
+        ) > 0;
+
+      const esCortesia =
+        Number(
+          pedidoData.total_bruto || 0
+        ) > 0 &&
+        Number(
+          pedidoData.total_final || 0
+        ) === 0 &&
+        Number(
+          pedidoData.descuento || 0
+        ) >=
+          Number(
+            pedidoData.total_bruto || 0
+          );
+
+      if (
+        pedidoData.p_2listo !== true ||
+        (!tienePago && !esCortesia)
+      ) {
+        throw new Error(
+          "Este pedido todavía no está autorizado para producción."
+        );
+      }
 
       const { data: detallesData, error: detallesError } = await supabase
         .from("detalles_pedido")
@@ -88,8 +121,15 @@ export default function ProduccionDetalle({ pedidoId, onBack }: Props) {
       setPedido(pedidoData);
       setDetalles(detallesData || []);
     } catch (err: any) {
-      console.error("Error cargando detalle de producción:", err.message);
-      alert("No se pudo cargar el detalle del pedido");
+          console.error(
+        "Error cargando detalle de producción:",
+        err.message
+      );
+
+      alert(
+        err?.message ||
+          "No se pudo cargar el detalle del pedido"
+      );
     } finally {
       setLoading(false);
     }

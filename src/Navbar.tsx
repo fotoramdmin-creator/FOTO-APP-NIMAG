@@ -11,6 +11,7 @@ import {
   Plus,
   Sparkles,
   PackageCheck,
+  CalendarRange,
 } from "lucide-react";
 import { supabase } from "./supabaseClient";
 
@@ -63,7 +64,7 @@ const Navbar = ({
     return `${year}-${month}-${day}`;
   };
 
-    const cargarBadgesNavbar = useCallback(async () => {
+  const cargarBadgesNavbar = useCallback(async () => {
     try {
       const hoy = obtenerFechaHoyLocal();
 
@@ -73,7 +74,9 @@ const Navbar = ({
       ] = await Promise.all([
         supabase
           .from("pedidos")
-          .select("id")
+          .select(
+            "id, total_bruto, total_final, total_pagado, descuento"
+          )
           .or("p_2listo.is.null,p_2listo.eq.false"),
 
         supabase
@@ -86,8 +89,23 @@ const Navbar = ({
       if (ordenCursoError) throw ordenCursoError;
       if (produccionError) throw produccionError;
 
-      const pedidosOrdenCurso = ordenCursoData || [];
-      const pedidosProduccion = produccionData || [];
+      const pedidosOrdenCurso = (
+        ordenCursoData || []
+      ).filter((pedido: any) => {
+        const tienePago =
+          Number(pedido.total_pagado || 0) > 0;
+
+        const esCortesia =
+          Number(pedido.total_bruto || 0) > 0 &&
+          Number(pedido.total_final || 0) === 0 &&
+          Number(pedido.descuento || 0) >=
+          Number(pedido.total_bruto || 0);
+
+        return tienePago || esCortesia;
+      });
+
+      const pedidosProduccion =
+        produccionData || [];
 
       const urgentes = pedidosProduccion.filter(
         (p: any) => p.urgente === true
@@ -142,7 +160,8 @@ const Navbar = ({
       view: "Toma Pedidos",
       icon: <Plus size={18} />,
     },
-     {
+
+    {
       name: "Orden en curso",
       view: "Orden en Curso",
       icon: <Camera size={18} />,
@@ -159,6 +178,11 @@ const Navbar = ({
       name: "Entrega",
       view: "Entrega",
       icon: <PackageCheck size={18} />,
+    },
+    {
+      name: "Servicios",
+      view: "Servicios",
+      icon: <CalendarRange size={18} />,
     },
   ];
 
@@ -194,13 +218,17 @@ const Navbar = ({
                 alt="Foto Studio Ramírez"
                 style={{
                   ...styles.logoImg,
-                  height: isTablet
+                  height: isMobile
                     ? scrolled
-                      ? "140px"
-                      : "180px"
-                    : scrolled
-                    ? "180px"
-                    : "240px",
+                      ? "72px"
+                      : "88px"
+                    : isTablet
+                      ? scrolled
+                        ? "140px"
+                        : "180px"
+                      : scrolled
+                        ? "180px"
+                        : "240px",
                 }}
               />
             </motion.div>
@@ -213,7 +241,7 @@ const Navbar = ({
                 }}
               >
                 {menuItems.map((item) => (
-                                 <motion.button
+                  <motion.button
                     key={item.name}
                     onClick={() => setVista(item.view)}
                     style={{
@@ -223,34 +251,34 @@ const Navbar = ({
                       letterSpacing: isTablet ? "0.8px" : "1.5px",
                       background:
                         item.view === "Orden en Curso" &&
-                        (item.badgeOrdenCurso ?? 0) > 0
+                          (item.badgeOrdenCurso ?? 0) > 0
                           ? "rgba(234, 179, 8, 0.16)"
                           : "none",
                       border:
                         item.view === "Orden en Curso" &&
-                        (item.badgeOrdenCurso ?? 0) > 0
+                          (item.badgeOrdenCurso ?? 0) > 0
                           ? "1px solid rgba(234, 179, 8, 0.75)"
                           : "1px solid transparent",
                     }}
                     animate={
                       item.view === "Orden en Curso" &&
-                      (item.badgeOrdenCurso ?? 0) > 0
+                        (item.badgeOrdenCurso ?? 0) > 0
                         ? {
-                            boxShadow: [
-                              "0 0 0 0 rgba(234,179,8,0.10)",
-                              "0 0 0 7px rgba(234,179,8,0.12)",
-                              "0 0 0 0 rgba(234,179,8,0.10)",
-                            ],
-                          }
+                          boxShadow: [
+                            "0 0 0 0 rgba(234,179,8,0.10)",
+                            "0 0 0 7px rgba(234,179,8,0.12)",
+                            "0 0 0 0 rgba(234,179,8,0.10)",
+                          ],
+                        }
                         : {
-                            boxShadow: "0 0 0 0 rgba(234,179,8,0)",
-                          }
+                          boxShadow: "0 0 0 0 rgba(234,179,8,0)",
+                        }
                     }
                     transition={{
                       duration: 1.8,
                       repeat:
                         item.view === "Orden en Curso" &&
-                        (item.badgeOrdenCurso ?? 0) > 0
+                          (item.badgeOrdenCurso ?? 0) > 0
                           ? Infinity
                           : 0,
                       ease: "easeInOut",
@@ -263,16 +291,16 @@ const Navbar = ({
                   >
                     <span style={styles.iconWrapper}>{item.icon}</span>
                     <span>{item.name}</span>
-                                        {item.view === "Orden en Curso" &&
-                    (item.badgeOrdenCurso ?? 0) > 0 ? (
+                    {item.view === "Orden en Curso" &&
+                      (item.badgeOrdenCurso ?? 0) > 0 ? (
                       <span style={styles.badgeOrdenDesktop}>
                         {item.badgeOrdenCurso}
                       </span>
                     ) : null}
 
                     {item.view === "Producción" &&
-                    ((item.badgeUrgentes ?? 0) > 0 ||
-                      (item.badgeHoy ?? 0) > 0) ? (
+                      ((item.badgeUrgentes ?? 0) > 0 ||
+                        (item.badgeHoy ?? 0) > 0) ? (
                       <span style={styles.badgesWrapDesktop}>
                         {(item.badgeUrgentes ?? 0) > 0 ? (
                           <span style={styles.badgeUrgenteDesktop}>
@@ -326,21 +354,21 @@ const Navbar = ({
               </div>
             )}
 
-                     {isMobile && (
+            {isMobile && (
               <motion.button
                 whileTap={{ scale: 0.8 }}
                 animate={
                   badgeOrdenCurso > 0
                     ? {
-                        boxShadow: [
-                          "0 0 0 0 rgba(234,179,8,0.10)",
-                          "0 0 0 9px rgba(234,179,8,0.16)",
-                          "0 0 0 0 rgba(234,179,8,0.10)",
-                        ],
-                      }
+                      boxShadow: [
+                        "0 0 0 0 rgba(234,179,8,0.10)",
+                        "0 0 0 9px rgba(234,179,8,0.16)",
+                        "0 0 0 0 rgba(234,179,8,0.10)",
+                      ],
+                    }
                     : {
-                        boxShadow: "0 0 0 0 rgba(234,179,8,0)",
-                      }
+                      boxShadow: "0 0 0 0 rgba(234,179,8,0)",
+                    }
                 }
                 transition={{
                   duration: 1.8,
@@ -408,16 +436,16 @@ const Navbar = ({
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.1 }}
-                                           style={{
+                      style={{
                         ...styles.mobileLink,
                         backgroundColor:
                           item.view === "Orden en Curso" &&
-                          (item.badgeOrdenCurso ?? 0) > 0
+                            (item.badgeOrdenCurso ?? 0) > 0
                             ? "rgba(234,179,8,0.16)"
                             : "rgba(255,255,255,0.03)",
                         border:
                           item.view === "Orden en Curso" &&
-                          (item.badgeOrdenCurso ?? 0) > 0
+                            (item.badgeOrdenCurso ?? 0) > 0
                             ? "1px solid rgba(234,179,8,0.70)"
                             : "1px solid transparent",
                       }}
@@ -429,16 +457,16 @@ const Navbar = ({
                       <div style={styles.iconCircleMobile}>{item.icon}</div>
 
                       <span style={styles.mobileLinkText}>{item.name}</span>
-                                            {item.view === "Orden en Curso" &&
-                      (item.badgeOrdenCurso ?? 0) > 0 ? (
+                      {item.view === "Orden en Curso" &&
+                        (item.badgeOrdenCurso ?? 0) > 0 ? (
                         <span style={styles.badgeOrdenMobile}>
                           {item.badgeOrdenCurso}
                         </span>
                       ) : null}
 
                       {item.view === "Producción" &&
-                      ((item.badgeUrgentes ?? 0) > 0 ||
-                        (item.badgeHoy ?? 0) > 0) ? (
+                        ((item.badgeUrgentes ?? 0) > 0 ||
+                          (item.badgeHoy ?? 0) > 0) ? (
                         <span style={styles.badgesWrapMobile}>
                           {(item.badgeUrgentes ?? 0) > 0 ? (
                             <span style={styles.badgeUrgenteMobile}>
@@ -547,7 +575,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     alignItems: "center",
   },
-    badgeOrdenDesktop: {
+  badgeOrdenDesktop: {
     minWidth: "22px",
     height: "22px",
     padding: "0 7px",
@@ -773,7 +801,7 @@ const styles: { [key: string]: React.CSSProperties } = {
   mobileLinkText: {
     flex: 1,
   },
-    badgeOrdenMobile: {
+  badgeOrdenMobile: {
     minWidth: "24px",
     height: "24px",
     padding: "0 7px",

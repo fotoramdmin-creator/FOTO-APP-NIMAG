@@ -285,7 +285,7 @@ export const generarTicketPdf = (pedido: PedidoTicket) => {
   const anticipo = Number(pedido.anticipo ?? 0);
   const liquidacion = Number(pedido.liquidacion ?? 0);
   const totalPagado = Number(
-    pedido.total_pagado ?? anticipo + liquidacion ?? 0
+    pedido.total_pagado ?? (anticipo + liquidacion)
   );
   const resta = Number(pedido.resta ?? total - totalPagado);
 
@@ -383,4 +383,4 @@ export const compartirTicketPdf = async (pedido: PedidoTicket) => {
   window.setTimeout(() => {
     URL.revokeObjectURL(url);
   }, 60000);
-};
+};

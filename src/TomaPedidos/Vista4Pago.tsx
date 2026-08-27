@@ -28,6 +28,29 @@ type PartePago = {
   cuentaDestino: string;
 };
 
+export type PagoGuardado = {
+  id: string;
+  fecha_pago: string;
+  monto: number;
+  metodo_pago: MetodoPago;
+  cuenta_destino: string | null;
+  tipo: TipoPago;
+  usuario_id: string | null;
+};
+
+export type ResultadoPago = {
+  pagos: PagoGuardado[];
+  pedidoId?: string;
+  servicioId?: string;
+  clienteNombre: string;
+  tipoPago: TipoPago;
+  fechaPago: string;
+  totalPagado: number;
+  saldoAnterior: number;
+  saldoPosterior: number;
+  usuarioId?: string;
+};
+
 const crearPartePago = (
   metodo: MetodoPago = "EFECTIVO",
   monto = ""
@@ -48,7 +71,8 @@ const limpiarMontoInput = (valor: string) => {
 };
 
 type Props = {
-  pedidoId: string;
+  pedidoId?: string;
+  servicioId?: string;
   clienteNombre: string;
   usuarioId?: string;
   totalBruto: number;
@@ -56,7 +80,7 @@ type Props = {
   totalFinal: number;
   pendiente: number;
   onVolver: () => void;
-  onFinalizado: () => void;
+  onFinalizado: (resultado?: ResultadoPago) => void;
 };
 
 const THEME = {
@@ -75,6 +99,7 @@ const THEME = {
 
 function Vista4Pago({
   pedidoId,
+  servicioId,
   clienteNombre,
   usuarioId,
   totalBruto,
@@ -85,7 +110,7 @@ function Vista4Pago({
   onFinalizado,
 }: Props) {
   const [tipoPago, setTipoPago] = useState<TipoPago>("A_CUENTA");
-   const [cuentasTransferencia, setCuentasTransferencia] = useState<
+  const [cuentasTransferencia, setCuentasTransferencia] = useState<
     CuentaTransferencia[]
   >([]);
 
@@ -123,7 +148,7 @@ function Vista4Pago({
     (parte) => parte.metodo === "EFECTIVO"
   );
 
-    const cambio = incluyeEfectivo
+  const cambio = incluyeEfectivo
     ? conCuantoPagaNum - totalEfectivo
     : 0;
 
@@ -132,7 +157,15 @@ function Vista4Pago({
     0
   );
 
-   const diferenciaLiquidacion =
+  const esCortesia =
+    Boolean(pedidoId) &&
+    Number(totalBruto || 0) > 0 &&
+    Number(totalFinal || 0) === 0 &&
+    Number(descuento || 0) >=
+      Number(totalBruto || 0) &&
+    Number(pendiente || 0) === 0;
+
+  const diferenciaLiquidacion =
     Number(pendiente || 0) - totalDistribuido;
 
   const montosValidos = partesPago.every((parte) => {
@@ -173,20 +206,20 @@ function Vista4Pago({
     efectivoValido;
 
   useEffect(() => {
-  const cargarCuentasTransferencia = async () => {
-    const { data, error } = await supabase
-      .from("cuentas_transferencia")
-      .select("id, nombre")
-      .eq("activa", true)
-      .order("orden", { ascending: true });
+    const cargarCuentasTransferencia = async () => {
+      const { data, error } = await supabase
+        .from("cuentas_transferencia")
+        .select("id, nombre")
+        .eq("activa", true)
+        .order("orden", { ascending: true });
 
-    if (!error) {
-      setCuentasTransferencia(data || []);
-    }
-  };
+      if (!error) {
+        setCuentasTransferencia(data || []);
+      }
+    };
 
-  cargarCuentasTransferencia();
-}, []);
+    cargarCuentasTransferencia();
+  }, []);
 
   const formatoMoneda = (valor: number) =>
     new Intl.NumberFormat("es-MX", {
@@ -246,6 +279,16 @@ function Vista4Pago({
   const guardarPago = async () => {
     limpiarError();
 
+    const cantidadOrigenes =
+      Number(Boolean(pedidoId)) + Number(Boolean(servicioId));
+
+    if (cantidadOrigenes !== 1) {
+      setError(
+        "No se pudo identificar si el cobro pertenece a un pedido o a un servicio."
+      );
+      return;
+    }
+
     const partesNormalizadas = partesPago.map((parte) => ({
       ...parte,
       montoNumero: Number(parte.monto || 0),
@@ -279,7 +322,7 @@ function Vista4Pago({
       return;
     }
 
-     if (totalDistribuido > Number(pendiente || 0) + 0.009) {
+    if (totalDistribuido > Number(pendiente || 0) + 0.009) {
       setError("El total capturado no puede ser mayor al pendiente.");
       return;
     }
@@ -335,7 +378,8 @@ function Vista4Pago({
       const fechaPago = new Date().toISOString();
 
       const pagosAInsertar = partesNormalizadas.map((parte) => ({
-        pedido_id: pedidoId,
+        pedido_id: pedidoId || null,
+        servicio_id: servicioId || null,
         fecha_pago: fechaPago,
         monto: parte.montoNumero,
         metodo_pago: parte.metodo,
@@ -346,24 +390,74 @@ function Vista4Pago({
         tipo: tipoPago,
         nota:
           parte.metodo === "EFECTIVO"
-            ? `Pago ${tipoPago}. Efectivo aplicado ${
-                parte.montoNumero
-              }. Cliente entregó ${conCuantoPagaNum}`
-            : `Pago ${tipoPago}. ${parte.metodo} por ${
-                parte.montoNumero
-              }`,
+            ? `Pago ${tipoPago}. Efectivo aplicado ${parte.montoNumero
+            }. Cliente entregó ${conCuantoPagaNum}`
+            : `Pago ${tipoPago}. ${parte.metodo} por ${parte.montoNumero
+            }`,
         usuario_id: usuarioId || null,
       }));
 
-      const { error } = await supabase
+         const { data: pagosGuardados, error } = await supabase
         .from("pagos")
-        .insert(pagosAInsertar);
+        .insert(pagosAInsertar)
+        .select(
+          `
+            id,
+            fecha_pago,
+            monto,
+            metodo_pago,
+            cuenta_destino,
+            tipo,
+            usuario_id
+          `
+        );
 
       if (error) throw error;
 
-      onFinalizado();
+      onFinalizado({
+        pagos: (pagosGuardados || []) as PagoGuardado[],
+        pedidoId,
+        servicioId,
+        clienteNombre,
+        tipoPago,
+        fechaPago,
+        totalPagado: totalDistribuido,
+        saldoAnterior: Number(pendiente || 0),
+        saldoPosterior: saldoDespuesPago,
+        usuarioId: usuarioId || undefined,
+      });
     } catch (err: any) {
       setError(err?.message || "Error al procesar el pago.");
+    } finally {
+      setGuardando(false);
+    }
+  };
+
+  const finalizarCortesia = async () => {
+    if (!pedidoId || guardando) return;
+
+    try {
+      setGuardando(true);
+      limpiarError();
+
+      const { error: errorCortesia } =
+        await supabase.rpc(
+          "finalizar_pedido_cortesia",
+          {
+            p_pedido_id: pedidoId,
+          }
+        );
+
+      if (errorCortesia) {
+        throw errorCortesia;
+      }
+
+      onFinalizado();
+    } catch (err: any) {
+      setError(
+        err?.message ||
+          "No se pudo finalizar la cortesía."
+      );
     } finally {
       setGuardando(false);
     }
@@ -373,6 +467,232 @@ function Vista4Pago({
   const colorCambio = cambio >= 0 ? THEME.olive : THEME.danger;
   const bgCambio =
     cambio >= 0 ? "rgba(85,107,47,0.08)" : "rgba(190,18,60,0.06)";
+
+  if (esCortesia) {
+    return (
+      <div style={styles.wrapper}>
+        <motion.div
+          style={styles.container}
+          initial={{
+            opacity: 0,
+            y: 20,
+          }}
+          animate={{
+            opacity: 1,
+            y: 0,
+          }}
+          transition={{
+            duration: 0.28,
+          }}
+        >
+          <div style={styles.headerRow}>
+            <button
+              type="button"
+              onClick={onVolver}
+              disabled={guardando}
+              style={styles.backButton}
+            >
+              <ArrowLeft size={16} />
+              <span>VOLVER</span>
+            </button>
+          </div>
+
+          <div style={styles.titleWrap}>
+            <div style={styles.badge}>
+              <Sparkles size={12} />
+              CORTESÍA AUTORIZADA
+            </div>
+
+            <h1 style={styles.title}>
+              Pedido de cortesía
+            </h1>
+
+            <p style={styles.subtitle}>
+              Cliente:{" "}
+              <strong
+                style={{
+                  color: THEME.gold,
+                }}
+              >
+                {clienteNombre}
+              </strong>
+            </p>
+          </div>
+
+          <motion.div
+            style={styles.glassCard}
+            whileHover={{
+              y: -4,
+            }}
+          >
+            <div style={styles.cardHeader}>
+              <div style={styles.iconCircle}>
+                <CheckCircle2
+                  size={24}
+                  color="#fff"
+                />
+              </div>
+
+              <div>
+                <p
+                  style={
+                    styles.smallLabelLight
+                  }
+                >
+                  CORTESÍA / 100% DESCUENTO
+                </p>
+
+                <h2 style={styles.mainPrice}>
+                  {formatoMoneda(0)}
+                </h2>
+              </div>
+            </div>
+
+            <div style={styles.divider} />
+
+            <div style={styles.summaryGrid}>
+              <div
+                style={styles.summaryMiniCard}
+              >
+                <span
+                  style={
+                    styles.smallLabelLight
+                  }
+                >
+                  TOTAL BRUTO
+                </span>
+
+                <span
+                  style={
+                    styles.summaryMiniValue
+                  }
+                >
+                  {formatoMoneda(totalBruto)}
+                </span>
+              </div>
+
+              <div
+                style={styles.summaryMiniCard}
+              >
+                <span
+                  style={
+                    styles.smallLabelLight
+                  }
+                >
+                  DESCUENTO
+                </span>
+
+                <span
+                  style={{
+                    ...styles.summaryMiniValue,
+                    color: THEME.gold,
+                  }}
+                >
+                  - {formatoMoneda(descuento)}
+                </span>
+              </div>
+
+              <div
+                style={styles.summaryMiniCard}
+              >
+                <span
+                  style={
+                    styles.smallLabelLight
+                  }
+                >
+                  PENDIENTE
+                </span>
+
+                <span
+                  style={{
+                    ...styles.summaryMiniValue,
+                    color: THEME.gold,
+                  }}
+                >
+                  {formatoMoneda(0)}
+                </span>
+              </div>
+            </div>
+          </motion.div>
+
+          <section style={styles.section}>
+            <div
+              style={{
+                borderRadius: 18,
+                padding: 20,
+                background:
+                  "rgba(85,107,47,0.09)",
+                border:
+                  "1px solid rgba(85,107,47,0.22)",
+                textAlign: "center",
+              }}
+            >
+              <strong
+                style={{
+                  display: "block",
+                  color: THEME.olive,
+                  marginBottom: 8,
+                }}
+              >
+                No se registrará ningún pago
+              </strong>
+
+              <span
+                style={{
+                  color: THEME.textSoft,
+                  fontSize: 13,
+                  lineHeight: 1.5,
+                }}
+              >
+                El pedido podrá continuar porque
+                el descuento cubre la totalidad.
+              </span>
+            </div>
+
+            {error ? (
+              <div
+                style={{
+                  marginTop: 14,
+                  color: THEME.danger,
+                  fontWeight: 800,
+                  textAlign: "center",
+                }}
+              >
+                {error}
+              </div>
+            ) : null}
+
+            <button
+              type="button"
+              onClick={finalizarCortesia}
+              disabled={guardando}
+              style={{
+                width: "100%",
+                minHeight: 58,
+                marginTop: 18,
+                border: "none",
+                borderRadius: 17,
+                background: THEME.olive,
+                color: THEME.white,
+                fontSize: 13,
+                fontWeight: 900,
+                cursor: guardando
+                  ? "wait"
+                  : "pointer",
+                opacity: guardando
+                  ? 0.7
+                  : 1,
+              }}
+            >
+              {guardando
+                ? "FINALIZANDO…"
+                : "FINALIZAR CORTESÍA"}
+            </button>
+          </section>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div style={styles.wrapper}>
@@ -465,7 +785,7 @@ function Vista4Pago({
                 <button
                   key={opt.id}
                   type="button"
-                                 onClick={() => {
+                  onClick={() => {
                     const nuevoTipo = opt.id as TipoPago;
 
                     setTipoPago(nuevoTipo);
@@ -479,9 +799,9 @@ function Vista4Pago({
                         prev.map((parte, index) =>
                           index === 0
                             ? {
-                                ...parte,
-                                monto: String(Number(pendiente || 0)),
-                              }
+                              ...parte,
+                              monto: String(Number(pendiente || 0)),
+                            }
                             : parte
                         )
                       );
@@ -529,7 +849,7 @@ function Vista4Pago({
               );
             })}
           </div>
-                    <h3 style={{ ...styles.sectionLabel, marginTop: 24 }}>
+          <h3 style={{ ...styles.sectionLabel, marginTop: 24 }}>
             DISTRIBUCIÓN DEL PAGO
           </h3>
 
@@ -573,7 +893,7 @@ function Vista4Pago({
                       icon: CreditCard,
                       color: "#7b1fa2",
                     },
-                                   ].map((opt) => {
+                  ].map((opt) => {
                     const active = parte.metodo === opt.id;
 
                     const usadoEnOtraParte = partesPago.some(
@@ -596,7 +916,7 @@ function Vista4Pago({
                                 : "",
                           })
                         }
-                                             style={{
+                        style={{
                           ...styles.optionBtn,
                           borderColor: active
                             ? opt.color
@@ -637,7 +957,7 @@ function Vista4Pago({
                     MONTO CON ESTE MÉTODO
                   </label>
 
-                     <input
+                  <input
                     type="text"
                     inputMode="decimal"
                     style={styles.input}
@@ -714,7 +1034,7 @@ function Vista4Pago({
           )}
         </section>
 
-            <div style={styles.paymentSummary}>
+        <div style={styles.paymentSummary}>
           <div style={styles.paymentSummaryRow}>
             <span>Saldo pendiente</span>
             <strong>{formatoMoneda(pendiente)}</strong>
@@ -735,7 +1055,7 @@ function Vista4Pago({
               style={{
                 color:
                   tipoPago === "LIQUIDACION" &&
-                  Math.abs(diferenciaLiquidacion) > 0.009
+                    Math.abs(diferenciaLiquidacion) > 0.009
                     ? THEME.danger
                     : THEME.olive,
               }}
@@ -762,7 +1082,7 @@ function Vista4Pago({
                 style={styles.inputClean}
                 value={conCuantoPaga}
                 onChange={(e) => {
-                 setConCuantoPaga(
+                  setConCuantoPaga(
                     limpiarMontoInput(e.target.value)
                   );
                   limpiarError();
@@ -778,7 +1098,7 @@ function Vista4Pago({
         )}
 
         <AnimatePresence>
-         {incluyeEfectivo && conCuantoPaga !== "" && (
+          {incluyeEfectivo && conCuantoPaga !== "" && (
             <motion.div
               initial={{ opacity: 0, scale: 0.92, y: 8 }}
               animate={{
@@ -788,10 +1108,10 @@ function Vista4Pago({
                 boxShadow:
                   cambio >= 0
                     ? [
-                        "0 0 0 rgba(85,107,47,0.10)",
-                        "0 0 0 rgba(85,107,47,0.22)",
-                        "0 0 0 rgba(85,107,47,0.10)",
-                      ]
+                      "0 0 0 rgba(85,107,47,0.10)",
+                      "0 0 0 rgba(85,107,47,0.22)",
+                      "0 0 0 rgba(85,107,47,0.10)",
+                    ]
                     : "none",
               }}
               exit={{ opacity: 0, scale: 0.95 }}
@@ -837,7 +1157,7 @@ function Vista4Pago({
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
             onClick={guardarPago}
-           disabled={guardando || !pagoValido}
+            disabled={guardando || !pagoValido}
             style={{
               ...styles.btnConfirm,
               opacity: guardando || !pagoValido ? 0.5 : 1,
@@ -1037,7 +1357,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexShrink: 0,
   },
 
-    partePagoCard: {
+  partePagoCard: {
     background: "#fff",
     border: `1px solid ${THEME.border}`,
     borderRadius: "22px",
@@ -1094,7 +1414,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     marginTop: "4px",
   },
 
-    paymentSummary: {
+  paymentSummary: {
     background: THEME.black,
     color: "#fff",
     borderRadius: "22px",

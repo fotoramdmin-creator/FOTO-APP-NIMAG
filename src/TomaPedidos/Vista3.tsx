@@ -11,7 +11,7 @@ import {
   BadgeDollarSign,
   Tag,
   X,
-   Phone,
+  Phone,
   Mail,
   Clock,
 } from "lucide-react";
@@ -157,7 +157,7 @@ const Vista3 = ({
                   <div style={styles.infoHighlight}>
                     {datosCliente.cliente_nombre || "Sin nombre"}
                   </div>
-                                  {datosCliente.cliente_email ? (
+                  {datosCliente.cliente_email ? (
                     <div
                       style={{
                         ...styles.subInfo,
@@ -180,10 +180,9 @@ const Vista3 = ({
                     }}
                   >
                     {pedidoEsUrgente
-                      ? "⚡ Urgente (15-25 min)"
-                      : `${formatFecha(datosCliente.fecha_entrega)} - ${
-                          datosCliente.horario_entrega
-                        }`}
+                      ? "⚡ Urgente (20-30 min)"
+                      : `${formatFecha(datosCliente.fecha_entrega)} - ${datosCliente.horario_entrega
+                      }`}
                   </div>
                 </div>
               </div>

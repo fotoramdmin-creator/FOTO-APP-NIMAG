@@ -22,6 +22,10 @@ type Pedido = {
   urgente: boolean | null;
   fecha_creacion: string;
   p_2listo: boolean | null;
+  total_bruto: number | null;
+  total_final: number | null;
+  total_pagado: number | null;
+  descuento: number | null;
   detalles_pedido: { n_toma: string | null }[];
 };
 
@@ -55,6 +59,7 @@ export default function OrdenEnCurso1({
         .from("pedidos")
         .select(
           `id, cliente_nombre, fecha_entrega, horario_entrega, urgente, fecha_creacion, p_2listo,
+           total_bruto, total_final, total_pagado, descuento,
            detalles_pedido ( n_toma )`
         )
         .order("fecha_creacion", { ascending: true });
@@ -220,6 +225,12 @@ export default function OrdenEnCurso1({
               const esActivo = pedido.id === pedidoActivoId;
               const esPrimero = index === 0;
 
+              const esCortesia =
+                Number(pedido.total_bruto || 0) > 0 &&
+                Number(pedido.total_final || 0) === 0 &&
+                Number(pedido.descuento || 0) >=
+                Number(pedido.total_bruto || 0);
+
               return (
                 <motion.div
                   key={pedido.id}
@@ -252,6 +263,30 @@ export default function OrdenEnCurso1({
                       >
                         {pedido.cliente_nombre?.toUpperCase() || "SIN NOMBRE"}
                       </h2>
+
+                      {esCortesia && (
+                        <div
+                          style={{
+                            width: "fit-content",
+                            marginTop: 8,
+                            padding: "6px 10px",
+                            borderRadius: 999,
+                            background: esActivo
+                              ? "rgba(184,159,84,0.18)"
+                              : "#edf8f1",
+                            border: `1px solid ${esActivo
+                                ? "rgba(184,159,84,0.55)"
+                                : "rgba(35,122,75,0.28)"
+                              }`,
+                            color: esActivo ? THEME.gold : "#237a4b",
+                            fontSize: 11,
+                            fontWeight: 900,
+                            letterSpacing: "0.05em",
+                          }}
+                        >
+                          CORTESÍA · 100% DESCUENTO
+                        </div>
+                      )}
 
                       <div
                         style={{

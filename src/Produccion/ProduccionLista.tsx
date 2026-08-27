@@ -51,6 +51,10 @@ export default function ProduccionLista({
           urgente,
           p_2listo,
           p3_concluido,
+          total_bruto,
+          total_final,
+          total_pagado,
+          descuento,
           fecha_inicio_urgente,
           detalles_pedido ( id, n_toma )
           `
@@ -61,7 +65,29 @@ export default function ProduccionLista({
 
       if (error) throw error;
 
-      const preparados = (data || [])
+            const preparados = (data || [])
+        .filter((pedido: any) => {
+          const tienePago =
+            Number(
+              pedido.total_pagado || 0
+            ) > 0;
+
+          const esCortesia =
+            Number(
+              pedido.total_bruto || 0
+            ) > 0 &&
+            Number(
+              pedido.total_final || 0
+            ) === 0 &&
+            Number(
+              pedido.descuento || 0
+            ) >=
+              Number(
+                pedido.total_bruto || 0
+              );
+
+          return tienePago || esCortesia;
+        })
         .map((pedido: any) => {
           const tomas = Array.from(
             new Set(
@@ -303,8 +329,15 @@ export default function ProduccionLista({
       ) : (
         <div style={styles.scrollArea}>
           <AnimatePresence mode="popLayout">
-            {listaActual.map((pedido) => {
+                      {listaActual.map((pedido) => {
               const categoria = obtenerCategoria(pedido);
+
+              const esCortesia =
+                Number(pedido.total_bruto || 0) > 0 &&
+                Number(pedido.total_final || 0) === 0 &&
+                Number(pedido.descuento || 0) >=
+                  Number(pedido.total_bruto || 0);
+
               const timer =
                 pedido.urgente && pedido.fecha_inicio_urgente
                   ? renderTimer(pedido.fecha_inicio_urgente)
@@ -323,8 +356,8 @@ export default function ProduccionLista({
                     borderLeft: pedido.urgente
                       ? "10px solid #ff4d4d"
                       : categoria === "HOY"
-                      ? "10px solid #eab308"
-                      : "10px solid #6b7280",
+                        ? "10px solid #eab308"
+                        : "10px solid #6b7280",
                     padding: isMobile ? "18px" : "24px",
                   }}
                 >
@@ -353,8 +386,8 @@ export default function ProduccionLista({
                             categoria === "URGENTES"
                               ? "#ff4d4d"
                               : categoria === "HOY"
-                              ? "#eab308"
-                              : "#6b7280",
+                                ? "#eab308"
+                                : "#6b7280",
                         }}
                       >
                         {categoria === "URGENTES" ? "URGENTE" : categoria}
@@ -381,10 +414,28 @@ export default function ProduccionLista({
                       gap: isMobile ? "8px" : "20px",
                     }}
                   >
-                    <div style={styles.infoRow}>
+                                      <div style={styles.infoRow}>
                       <User size={14} />
                       {pedido.cliente_nombre || "SIN NOMBRE"}
                     </div>
+
+                    {esCortesia && (
+                      <div
+                        style={{
+                          width: "fit-content",
+                          padding: "6px 10px",
+                          borderRadius: 999,
+                          background: "#edf8f1",
+                          border: "1px solid rgba(35,122,75,0.28)",
+                          color: "#237a4b",
+                          fontSize: 11,
+                          fontWeight: 900,
+                          letterSpacing: "0.04em",
+                        }}
+                      >
+                        CORTESÍA · 100% DESCUENTO
+                      </div>
+                    )}
 
                     <div style={styles.infoRow}>
                       <Smartphone size={14} />

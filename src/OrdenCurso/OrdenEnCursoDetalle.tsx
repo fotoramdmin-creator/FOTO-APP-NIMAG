@@ -40,6 +40,7 @@ type Pedido = {
   p_2listo?: boolean | null;
   total_final?: number | null;
   total_bruto?: number | null;
+  descuento?: number | null;
   anticipo?: number | null;
   liquidacion?: number | null;
   total_pagado?: number | null;
@@ -76,6 +77,18 @@ export default function OrdenEnCursoDetalle({
     Record<string, string>
   >({});
 
+  const [
+    firmaTomasAvisada,
+    setFirmaTomasAvisada,
+  ] = useState("");
+
+  const [
+    confirmacionWhatsApp,
+    setConfirmacionWhatsApp,
+  ] = useState<{
+    tomasCompletadasAt: string;
+  } | null>(null);
+
   const cargarPedido = async () => {
     try {
       setLoading(true);
@@ -84,7 +97,7 @@ export default function OrdenEnCursoDetalle({
         .from("pedidos")
         .select(
           `id, cliente_nombre, cliente_telefono, fecha_entrega, horario_entrega, urgente, p_2listo,
-           total_final, total_bruto, anticipo, liquidacion, total_pagado, resta, fecha_creacion,
+                     total_final, total_bruto, descuento, anticipo, liquidacion, total_pagado, resta, fecha_creacion,
            detalles_pedido ( id, tamano, cantidad, tipo, papel, especificaciones, n_toma )`
         )
         .eq("id", pedidoId)
@@ -98,7 +111,19 @@ export default function OrdenEnCursoDetalle({
       (data?.detalles_pedido || []).forEach((detalle: Detalle) => {
         iniciales[detalle.id] = detalle.n_toma || "";
       });
+
       setTomasPorRenglon(iniciales);
+
+      setFirmaTomasAvisada(
+        (data?.detalles_pedido || [])
+          .map(
+            (detalle: Detalle) =>
+              `${detalle.id}:${(
+                iniciales[detalle.id] || ""
+              ).trim()}`
+          )
+          .join("|")
+      );
     } catch (err) {
       console.error("Error cargando pedido:", err);
       alert("No se pudo cargar el detalle del pedido");
@@ -113,7 +138,7 @@ export default function OrdenEnCursoDetalle({
     }
   }, [pedidoId]);
 
-    useEffect(() => {
+  useEffect(() => {
     let componenteActivo = true;
 
     prepararTicketPdf().then(
@@ -168,12 +193,56 @@ export default function OrdenEnCursoDetalle({
   const guardarTomas = async () => {
     try {
       setIsSaving(true);
+
       await guardarTomasInterno();
-      alert("Guardado correctamente");
+
+      const detalles =
+        pedido?.detalles_pedido || [];
+
+      const todasCompletas =
+        detalles.length > 0 &&
+        detalles.every(
+          (detalle) =>
+            String(
+              tomasPorRenglon[
+                detalle.id
+              ] || ""
+            ).trim() !== ""
+        );
+
+      const firmaActual = detalles
+        .map(
+          (detalle) =>
+            `${detalle.id}:${String(
+              tomasPorRenglon[
+                detalle.id
+              ] || ""
+            ).trim()}`
+        )
+        .join("|");
+
+      const debeOfrecerWhatsApp =
+        todasCompletas &&
+        firmaActual !==
+          firmaTomasAvisada;
+
+      if (debeOfrecerWhatsApp) {
+        await revisarTomasCompletas();
+      } else {
+        alert("Guardado correctamente");
+      }
+
       await cargarPedido();
     } catch (err: any) {
-      console.error("Error guardando números de toma:", err);
-      alert("Error al guardar: " + (err?.message || "desconocido"));
+      console.error(
+        "Error guardando números de toma:",
+        err
+      );
+
+      alert(
+        "Error al guardar: " +
+          (err?.message || "desconocido")
+      );
     } finally {
       setIsSaving(false);
     }
@@ -220,26 +289,108 @@ export default function OrdenEnCursoDetalle({
     }
   };
 
-  const manejarWhatsApp = async () => {
+  const manejarWhatsApp = async (
+    tomasCompletadasAt?: string
+  ) => {
+    const ventanaWhatsApp = window.open(
+      "about:blank",
+      "_blank"
+    );
+
+    if (!ventanaWhatsApp) {
+      alert(
+        "El navegador bloqueó la ventana de WhatsApp. Permite las ventanas emergentes para esta aplicación e inténtalo nuevamente."
+      );
+      return;
+    }
+
     try {
-      if (!pedido) return;
+      if (!pedido) {
+        ventanaWhatsApp.close();
+        return;
+      }
 
       await guardarTomasInterno();
 
       const pedidoConTomas = {
         ...pedido,
-        detalles_pedido: pedido.detalles_pedido.map((d) => ({
-          ...d,
-          n_toma: tomasPorRenglon[d.id] || "",
-        })),
+        tomas_completadas_at:
+          tomasCompletadasAt || null,
+        detalles_pedido:
+          pedido.detalles_pedido.map(
+            (d) => ({
+              ...d,
+              n_toma:
+                tomasPorRenglon[d.id] ||
+                "",
+            })
+          ),
       };
 
-      enviarWhatsApp(pedidoConTomas);
+      enviarWhatsApp(
+        pedidoConTomas,
+        ventanaWhatsApp
+      );
     } catch (err: any) {
-      console.error("Error preparando WhatsApp:", err);
-      alert("Error al preparar WhatsApp: " + (err?.message || "desconocido"));
+      ventanaWhatsApp.close();
+
+      console.error(
+        "Error preparando WhatsApp:",
+        err
+      );
+
+      alert(
+        "Error al preparar WhatsApp: " +
+        (err?.message || "desconocido")
+      );
     }
   };
+
+  const revisarTomasCompletas = async () => {
+    if (!pedido) return;
+
+    const detalles =
+      pedido.detalles_pedido || [];
+
+    if (detalles.length === 0) {
+      return;
+    }
+
+    const todasCompletas =
+      detalles.every(
+        (detalle) =>
+          String(
+            tomasPorRenglon[detalle.id] || ""
+          ).trim() !== ""
+      );
+
+    if (!todasCompletas) {
+      return;
+    }
+
+    const firmaActual = detalles
+      .map(
+        (detalle) =>
+          `${detalle.id}:${String(
+            tomasPorRenglon[detalle.id] || ""
+          ).trim()}`
+      )
+      .join("|");
+
+    if (
+      firmaActual === firmaTomasAvisada
+    ) {
+      return;
+    }
+
+    setFirmaTomasAvisada(firmaActual);
+
+    setConfirmacionWhatsApp({
+      tomasCompletadasAt:
+        new Date().toISOString(),
+    });
+  };
+
 
   const manejarCompartirTicket = async () => {
     try {
@@ -318,12 +469,195 @@ export default function OrdenEnCursoDetalle({
     );
   }
 
+  const esCortesia =
+    Number(pedido.total_bruto || 0) > 0 &&
+    Number(pedido.total_final || 0) === 0 &&
+    Number(pedido.descuento || 0) >=
+    Number(pedido.total_bruto || 0);
+
   return (
     <motion.div
       initial={{ opacity: 0, x: 20 }}
       animate={{ opacity: 1, x: 0 }}
       style={styles.container}
     >
+      <AnimatePresence>
+        {confirmacionWhatsApp && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{
+              position: "fixed",
+              inset: 0,
+              zIndex: 3000,
+              padding: 20,
+              background:
+                "rgba(18,17,15,0.72)",
+              backdropFilter: "blur(7px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              boxSizing: "border-box",
+            }}
+          >
+            <motion.div
+              initial={{
+                opacity: 0,
+                y: 18,
+                scale: 0.96,
+              }}
+              animate={{
+                opacity: 1,
+                y: 0,
+                scale: 1,
+              }}
+              exit={{
+                opacity: 0,
+                y: 12,
+                scale: 0.97,
+              }}
+              style={{
+                width: "100%",
+                maxWidth: 470,
+                borderRadius: 26,
+                background: THEME.white,
+                padding: 26,
+                boxSizing: "border-box",
+                boxShadow:
+                  "0 28px 80px rgba(0,0,0,0.28)",
+              }}
+            >
+              <div
+                style={{
+                  width: 58,
+                  height: 58,
+                  borderRadius: 18,
+                  background: "#e9f9ef",
+                  color: "#128c4a",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  marginBottom: 18,
+                }}
+              >
+                <MessageCircle size={30} />
+              </div>
+
+              <h2
+                style={{
+                  margin: 0,
+                  color: THEME.black,
+                  fontSize: 25,
+                  fontWeight: 950,
+                }}
+              >
+                Tomas completas
+              </h2>
+
+              <p
+                style={{
+                  margin: "10px 0 0",
+                  color: THEME.textSoft,
+                  fontSize: 15,
+                  lineHeight: 1.55,
+                }}
+              >
+                Todos los renglones tienen
+                número de toma. ¿Deseas enviar
+                el ticket al cliente?
+              </p>
+
+              {pedido.urgente && (
+                <div
+                  style={{
+                    marginTop: 16,
+                    borderRadius: 15,
+                    background: "#fff7df",
+                    border:
+                      "1px solid rgba(184,159,84,0.32)",
+                    color: "#715a19",
+                    padding: 13,
+                    fontSize: 13,
+                    fontWeight: 800,
+                    lineHeight: 1.45,
+                  }}
+                >
+                  El mensaje incluirá la hora
+                  actual y la entrega estimada
+                  de 20 a 30 minutos.
+                </div>
+              )}
+
+              <div
+                style={{
+                  display: "grid",
+                  gap: 10,
+                  marginTop: 22,
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() => {
+                    const horaCompletado =
+                      confirmacionWhatsApp
+                        .tomasCompletadasAt;
+
+                    setConfirmacionWhatsApp(
+                      null
+                    );
+
+                    void manejarWhatsApp(
+                      horaCompletado
+                    );
+                  }}
+                  style={{
+                    width: "100%",
+                    minHeight: 54,
+                    border: "none",
+                    borderRadius: 15,
+                    background: "#25D366",
+                    color: "#fff",
+                    fontSize: 15,
+                    fontWeight: 950,
+                    cursor: "pointer",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: 9,
+                  }}
+                >
+                  <MessageCircle size={20} />
+                  ENVIAR WHATSAPP
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() =>
+                    setConfirmacionWhatsApp(
+                      null
+                    )
+                  }
+                  style={{
+                    width: "100%",
+                    minHeight: 46,
+                    border: "none",
+                    borderRadius: 14,
+                    background: "#f3f1ec",
+                    color: THEME.textSoft,
+                    fontSize: 13,
+                    fontWeight: 900,
+                    cursor: "pointer",
+                  }}
+                >
+                  AHORA NO
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <button
         onClick={() => {
           if (onBack) onBack();
@@ -339,6 +673,26 @@ export default function OrdenEnCursoDetalle({
             <h1 style={styles.nombre}>
               {pedido.cliente_nombre?.toUpperCase() || "SIN NOMBRE"}
             </h1>
+
+            {esCortesia && (
+              <div
+                style={{
+                  width: "fit-content",
+                  marginTop: 8,
+                  marginBottom: 10,
+                  padding: "7px 12px",
+                  borderRadius: 999,
+                  background: "#edf8f1",
+                  border: "1px solid rgba(35,122,75,0.28)",
+                  color: "#237a4b",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  letterSpacing: "0.05em",
+                }}
+              >
+                CORTESÍA · 100% DESCUENTO · SIN PAGO
+              </div>
+            )}
 
             <div style={styles.nombreMetaInline}>
               <div style={styles.metaItem}>
@@ -389,13 +743,15 @@ export default function OrdenEnCursoDetalle({
               <motion.button
                 whileTap={{ scale: 0.98 }}
                 style={styles.ticketActionBtn}
-                onClick={manejarWhatsApp}
+                onClick={() => {
+                  void manejarWhatsApp();
+                }}
               >
                 <MessageCircle size={16} />
                 ENVIAR WHATSAPP
               </motion.button>
 
-                <motion.button
+              <motion.button
                 whileTap={
                   ticketPreparado && !isSharingTicket
                     ? { scale: 0.98 }
@@ -416,8 +772,8 @@ export default function OrdenEnCursoDetalle({
                 {!ticketPreparado
                   ? "PREPARANDO TICKET..."
                   : isSharingTicket
-                  ? "ABRIENDO..."
-                  : "COMPARTIR TICKET PDF"}
+                    ? "ABRIENDO..."
+                    : "COMPARTIR TICKET PDF"}
               </motion.button>
             </motion.div>
           )}
@@ -496,6 +852,7 @@ export default function OrdenEnCursoDetalle({
                       [d.id]: e.target.value.toUpperCase(),
                     }))
                   }
+
                   placeholder="0000"
                   style={styles.input}
                 />
