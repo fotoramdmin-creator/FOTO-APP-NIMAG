@@ -15,6 +15,7 @@ import {
   Image as ImageIcon,
   FileText,
   Pencil,
+  CopyPlus,
 } from "lucide-react";
 
 type Perfil = {
@@ -494,6 +495,28 @@ const Vista1 = ({
     setMostrarFormulario(true);
     setOcultarNavbar(true);
   };
+  const duplicarRenglon = (item: ItemCarrito) => {
+    setCarrito((prev) => {
+      const indiceOriginal = prev.findIndex(
+        (renglon) => renglon.id === item.id
+      );
+
+      if (indiceOriginal === -1) {
+        return prev;
+      }
+
+      const copia: ItemCarrito = {
+        ...item,
+        id: `${Date.now()}-${Math.random().toString(36).slice(2, 10)}`,
+      };
+
+      return [
+        ...prev.slice(0, indiceOriginal + 1),
+        copia,
+        ...prev.slice(indiceOriginal + 1),
+      ];
+    });
+  };
 
   const confirmarEliminar = (id: number | string) => {
     setIdAEliminar(id);
@@ -554,7 +577,12 @@ const Vista1 = ({
     <div style={styles.page}>
       <div style={styles.bgGlowTop} />
 
-      <div style={styles.container}>
+      <div
+        style={{
+          ...styles.container,
+          ...(isMobile ? { paddingTop: "96px" } : {}),
+        }}
+      >
         <header style={styles.headerWrap}>
           <div>
             <div style={styles.kicker}>FOTO ESTUDIO RAMÍREZ</div>
@@ -804,14 +832,28 @@ const Vista1 = ({
                         type="button"
                         onClick={() => editarRenglon(item)}
                         style={styles.actionBtnEdit}
+                        title="Editar renglón"
+                        aria-label={`Editar renglón ${idx + 1}`}
                       >
                         <Pencil size={16} />
                       </button>
 
                       <button
                         type="button"
+                        onClick={() => duplicarRenglon(item)}
+                        style={styles.actionBtnDuplicate}
+                        title="Duplicar renglón"
+                        aria-label={`Duplicar renglón ${idx + 1}`}
+                      >
+                        <CopyPlus size={17} />
+                      </button>
+
+                      <button
+                        type="button"
                         onClick={() => confirmarEliminar(item.id)}
                         style={styles.actionBtnDelete}
+                        title="Eliminar renglón"
+                        aria-label={`Eliminar renglón ${idx + 1}`}
                       >
                         <X size={16} />
                       </button>
@@ -1441,6 +1483,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     flexWrap: "wrap",
   },
   addRowBtn: {
+    minWidth: "196px",
+    minHeight: "76px",
     border: "none",
     padding: "16px 24px",
     borderRadius: "20px",
@@ -1448,9 +1492,25 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 800,
     display: "flex",
     alignItems: "center",
+    justifyContent: "center",
     gap: "12px",
     cursor: "pointer",
     boxShadow: "0 12px 28px rgba(0,0,0,0.1)",
+  },
+  addLineBtn: {
+    minWidth: "196px",
+    minHeight: "76px",
+    border: "none",
+    padding: "16px 24px",
+    borderRadius: "20px",
+    fontSize: "15px",
+    fontWeight: 800,
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: "12px",
+    cursor: "pointer",
+    boxShadow: "0 12px 28px rgba(0,0,0,0.14)",
   },
   selectorUsuario: {
     width: "100%",
@@ -1491,6 +1551,7 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     alignItems: "center",
     gap: "12px",
+    boxSizing: "border-box",
   },
   userFixedText: {
     fontSize: "15px",
@@ -1582,6 +1643,21 @@ const styles: { [key: string]: React.CSSProperties } = {
     cursor: "pointer",
     boxShadow: "0 6px 14px rgba(46,125,50,0.3)",
   },
+
+  actionBtnDuplicate: {
+    width: "36px",
+    height: "36px",
+    borderRadius: "50%",
+    border: "none",
+    backgroundColor: THEME.gold,
+    color: "#fff",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    cursor: "pointer",
+    boxShadow: "0 6px 14px rgba(184,159,84,0.35)",
+  },
+
   actionBtnDelete: {
     width: "36px",
     height: "36px",
@@ -1625,16 +1701,21 @@ const styles: { [key: string]: React.CSSProperties } = {
   },
   resumeRightMobile: {
     width: "100%",
-    justifyContent: "space-between",
-    alignItems: "center",
+    flexDirection: "column",
+    justifyContent: "flex-start",
+    alignItems: "stretch",
+    gap: "12px",
     paddingLeft: "48px",
     boxSizing: "border-box",
   },
   resumePriceMobile: {
     fontSize: "18px",
     lineHeight: 1,
+    alignSelf: "flex-start",
   },
   resumeActionsMobile: {
+    width: "100%",
+    justifyContent: "flex-end",
     gap: "10px",
   },
   resumeFooter: {
@@ -1644,6 +1725,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
+    flexWrap: "wrap",
+    gap: "10px 16px",
   },
   resumeFooterLabel: {
     fontSize: "14px",
@@ -1654,6 +1737,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontSize: "22px",
     color: THEME.text,
     fontWeight: 900,
+    marginLeft: "auto",
+    whiteSpace: "nowrap",
   },
   continuarWrap: {
     marginTop: "22px",
