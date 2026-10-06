@@ -62,6 +62,7 @@ export default function OrdenEnCurso1({
            total_bruto, total_final, total_pagado, descuento,
            detalles_pedido ( n_toma )`
         )
+        .or("p_2listo.is.null,p_2listo.eq.false")
         .order("fecha_creacion", { ascending: true });
 
       if (error) throw error;
