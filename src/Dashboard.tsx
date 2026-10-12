@@ -36,6 +36,7 @@ import { ServicioCreado } from "./Servicios/serviciosTypes";
 import RetirosCajaAdmin from "./Retiros/RetirosCajaAdmin";
 import CuentasLista from "./Cuentas/CuentasLista";
 import CuentasDetalle from "./Cuentas/CuentasDetalle";
+import PapeleraAdministrativa from "./Papelera/PapeleraAdministrativa";
 import BusquedaPedidos from "./Busqueda/BusquedaPedidos";
 import RecadosPanel from "./Recados/RecadosPanel";
 import ConfigPrecios from "./Configuracion/ConfigPrecios";
@@ -66,6 +67,7 @@ import {
   Landmark,
   KeyRound,
   Search,
+  Trash2,
 } from "lucide-react";
 
 type DatosCliente = {
@@ -350,7 +352,7 @@ const Dashboard = ({ session }: { session: any }) => {
     setBorradorInicializado,
   ] = useState(false);
 
-    const guardandoPedidoRef = useRef(false);
+  const guardandoPedidoRef = useRef(false);
 
   const creandoBorradorRef =
     useRef<Promise<PedidoBorrador> | null>(
@@ -421,10 +423,11 @@ const Dashboard = ({ session }: { session: any }) => {
         .select(
           "id, cliente_nombre, fecha_entrega, horario_entrega, urgente, total_bruto, total_final, total_pagado, descuento, resta, entregado, p_2listo, p3_concluido, fecha_inicio_urgente, fecha_creacion, detalles_pedido(n_toma, retocado, impreso, calendario)"
         )
+        .eq("en_papelera", false)
         .order("fecha_creacion", { ascending: false })
         .limit(160);
 
-          if (error) throw error;
+      if (error) throw error;
 
       const pedidosCargados = (
         Array.isArray(data) ? data : []
@@ -447,9 +450,9 @@ const Dashboard = ({ session }: { session: any }) => {
             Number(
               pedido.descuento || 0
             ) >=
-              Number(
-                pedido.total_bruto || 0
-              );
+            Number(
+              pedido.total_bruto || 0
+            );
 
           return tienePago || esCortesia;
         });
@@ -1429,7 +1432,7 @@ const Dashboard = ({ session }: { session: any }) => {
     prepararCapturaPedido,
   ]);
 
-    useEffect(() => {
+  useEffect(() => {
     if (
       !borradorInicializado ||
       borradorActivoId ||
@@ -1626,6 +1629,13 @@ const Dashboard = ({ session }: { session: any }) => {
       color: "#2f5d50",
       view: "Cuentas",
     },
+    {
+      icon: <Trash2 size={24} />,
+      title: "Papelera",
+      subtitle: "Registros retirados y restauración",
+      color: "#b42318",
+      view: "Papelera",
+    },
   ];
 
   const reiniciarFlujoPedido = () => {
@@ -1725,7 +1735,7 @@ const Dashboard = ({ session }: { session: any }) => {
         paso: "Vista3",
       };
 
-          let borradorId =
+      let borradorId =
         borradorActivoId;
 
       if (
@@ -2494,6 +2504,7 @@ const Dashboard = ({ session }: { session: any }) => {
                 nombreParaMostrar ||
                 ""
               }
+              esAdmin={perfilComp?.admin === true}
               onCerrarComprobante={() => {
                 setResultadoPagoServicio(null);
                 setOrigenPagoServicio(null);
@@ -2666,7 +2677,7 @@ const Dashboard = ({ session }: { session: any }) => {
               }}
             />
           ) : vistaActiva === "Busqueda" ? (
-            <BusquedaPedidos />
+            <BusquedaPedidos perfil={perfilComp} />
           ) : vistaActiva === "Editar" ? (
             <EditarPedido perfil={perfilComp} />
           ) : vistaActiva === "Entrega" ? (
@@ -2674,6 +2685,21 @@ const Dashboard = ({ session }: { session: any }) => {
               usuarioId={perfilComp?.id}
               busquedaInicial={busquedaEntregaInicial}
             />
+          ) : vistaActiva === "Papelera" ? (
+            perfilComp?.admin ? (
+              <PapeleraAdministrativa
+                onBack={() => setVistaActiva("Inicio")}
+              />
+            ) : (
+              <div style={{ paddingTop: "100px", textAlign: "center" }}>
+                <h2 style={styles.sectionTitle}>
+                  Acceso exclusivo para administradores
+                </h2>
+                <button onClick={() => setVistaActiva("Inicio")}>
+                  Volver
+                </button>
+              </div>
+            )
           ) : vistaActiva === "Retiros Caja" ? (
             <RetirosCajaAdmin />
           ) : vistaActiva === "Cuentas" ? (

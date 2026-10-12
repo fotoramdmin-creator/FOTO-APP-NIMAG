@@ -59,13 +59,14 @@ export default function ProduccionLista({
           detalles_pedido ( id, n_toma )
           `
         )
+        .eq("en_papelera", false)
         .eq("p_2listo", true)
         .or("p3_concluido.is.null,p3_concluido.eq.false")
         .order("fecha_creacion", { ascending: true });
 
       if (error) throw error;
 
-            const preparados = (data || [])
+      const preparados = (data || [])
         .filter((pedido: any) => {
           const tienePago =
             Number(
@@ -82,9 +83,9 @@ export default function ProduccionLista({
             Number(
               pedido.descuento || 0
             ) >=
-              Number(
-                pedido.total_bruto || 0
-              );
+            Number(
+              pedido.total_bruto || 0
+            );
 
           return tienePago || esCortesia;
         })
@@ -329,14 +330,14 @@ export default function ProduccionLista({
       ) : (
         <div style={styles.scrollArea}>
           <AnimatePresence mode="popLayout">
-                      {listaActual.map((pedido) => {
+            {listaActual.map((pedido) => {
               const categoria = obtenerCategoria(pedido);
 
               const esCortesia =
                 Number(pedido.total_bruto || 0) > 0 &&
                 Number(pedido.total_final || 0) === 0 &&
                 Number(pedido.descuento || 0) >=
-                  Number(pedido.total_bruto || 0);
+                Number(pedido.total_bruto || 0);
 
               const timer =
                 pedido.urgente && pedido.fecha_inicio_urgente
@@ -414,7 +415,7 @@ export default function ProduccionLista({
                       gap: isMobile ? "8px" : "20px",
                     }}
                   >
-                                      <div style={styles.infoRow}>
+                    <div style={styles.infoRow}>
                       <User size={14} />
                       {pedido.cliente_nombre || "SIN NOMBRE"}
                     </div>

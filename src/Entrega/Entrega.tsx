@@ -229,6 +229,7 @@ export default function Entrega({
             created_at
           `
           )
+          .eq("en_papelera", false)
           .ilike("cliente_nombre", `%${texto}%`)
           .limit(30),
         supabase
@@ -285,8 +286,9 @@ export default function Entrega({
             entregado,
             fecha_inicio_urgente,
             created_at
-          `
+               `
           )
+          .eq("en_papelera", false)
           .in("id", idsPorToma);
 
         if (pedidosExtraError) throw pedidosExtraError;
@@ -402,6 +404,7 @@ export default function Entrega({
               estado
             `
           )
+          .eq("en_papelera", false)
           .eq("estado", "LISTO_ENTREGA")
           .limit(100);
 
@@ -799,7 +802,7 @@ export default function Entrega({
               Estamos sincronizando la información del estudio.
             </p>
           </div>
-               ) : pedidos.length > 0 ||
+        ) : pedidos.length > 0 ||
           servicios.length > 0 ? (
           <div style={styles.grid}>
             {pedidos.map((pedido) => (
@@ -827,7 +830,7 @@ export default function Entrega({
               />
             ))}
 
-                        {servicios.map((servicio) => (
+            {servicios.map((servicio) => (
               <motion.article
                 key={`servicio-${servicio.id}`}
                 initial={{ opacity: 0, y: 12 }}
@@ -1046,7 +1049,7 @@ export default function Entrega({
                   <PackageCheck size={18} />
 
                   {entregandoServicioId ===
-                  servicio.id
+                    servicio.id
                     ? "Registrando entrega…"
                     : "Entregar servicio"}
                 </button>
@@ -1054,7 +1057,7 @@ export default function Entrega({
             ))}
           </div>
         ) : busqueda.length >
-        0 ? (
+          0 ? (
           <div style={styles.emptyState}>
             <AlertCircle size={40} color={THEME.gold} />
             <h3 style={styles.emptyTitle}>No encontramos pedidos</h3>

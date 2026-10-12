@@ -34,9 +34,15 @@ type Pedido = {
   detalles_pedido: Detalle[];
 };
 
+type Props = {
+  perfil?: {
+    admin?: boolean | null;
+  } | null;
+};
+
 const LIMITE = 20;
 
-export default function BusquedaPedidos() {
+export default function BusquedaPedidos({ perfil }: Props) {
   const [pedidos, setPedidos] = useState<Pedido[]>([]);
   const [busqueda, setBusqueda] = useState("");
   const [pagina, setPagina] = useState(0);
@@ -91,8 +97,9 @@ export default function BusquedaPedidos() {
             cantidad,
             tipo
           )
-        `
+             `
         )
+        .eq("en_papelera", false)
         .order("fecha_creacion", { ascending: false })
         .range(desde, hasta);
 
@@ -155,6 +162,7 @@ export default function BusquedaPedidos() {
     return (
       <BusquedaDetalle
         pedidoId={pedidoDetalleId}
+        esAdmin={perfil?.admin === true}
         onBack={() => setPedidoDetalleId(null)}
         onSaved={() => cargarPedidos(true)}
       />
@@ -207,7 +215,7 @@ export default function BusquedaPedidos() {
                     </div>
                   )}
 
-                                   <h2 style={styles.nombre}>
+                  <h2 style={styles.nombre}>
                     {p.cliente_nombre || "SIN NOMBRE"}
                   </h2>
 

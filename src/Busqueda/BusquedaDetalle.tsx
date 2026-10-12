@@ -1,5 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
+import PapeleraConfirmacion, {
+  type ManejoPagosPapelera,
+} from "../Papelera/PapeleraConfirmacion";
 import {
   compartirTicketPdf,
   prepararTicketPdf,
@@ -19,6 +22,7 @@ import {
   MessageCircle,
   Printer,
   FileText,
+  Trash2,
 } from "lucide-react";
 
 type Detalle = {
@@ -74,6 +78,7 @@ type Pedido = {
 
 type Props = {
   pedidoId: string;
+  esAdmin?: boolean;
   onBack: () => void;
   onSaved?: () => void;
 };
@@ -97,7 +102,12 @@ const DOMINIOS_CORREO = [
   "@icloud.com",
 ];
 
-export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
+export default function BusquedaDetalle({
+  pedidoId,
+  esAdmin = false,
+  onBack,
+  onSaved,
+}: Props) {
   const [pedido, setPedido] = useState<Pedido | null>(null);
   const [detalles, setDetalles] = useState<Detalle[]>([]);
   const [pagos, setPagos] = useState<Pago[]>([]);
@@ -120,7 +130,8 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
   const [saving, setSaving] = useState(false);
   const [ticketPreparado, setTicketPreparado] = useState(false);
   const [compartiendoTicket, setCompartiendoTicket] = useState(false);
-
+  const [mostrarPapelera, setMostrarPapelera] = useState(false);
+  const [enviandoPapelera, setEnviandoPapelera] = useState(false);
   const numero = (valor: any) => {
     if (valor === "" || valor === null || valor === undefined) return 0;
     const n = Number(valor);
@@ -182,6 +193,7 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
         `
         )
         .eq("id", pedidoId)
+        .eq("en_papelera", false)
         .single();
 
       if (error) throw error;
@@ -388,6 +400,48 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
       alert("No se pudo editar el pago: " + (err?.message || "desconocido"));
     } finally {
       setGuardandoPago(false);
+    }
+  };
+  const enviarAPapelera = async (
+    motivo: string,
+    manejoPagos: ManejoPagosPapelera
+  ) => {
+    if (!pedido || !esAdmin || enviandoPapelera) return;
+
+    try {
+      setEnviandoPapelera(true);
+
+      const { error: rpcError } = await supabase.rpc(
+        "enviar_pedido_papelera",
+        {
+          p_pedido_id: pedido.id,
+          p_motivo: motivo,
+          p_manejo_pagos: manejoPagos,
+        }
+      );
+
+      if (rpcError) throw rpcError;
+
+      setMostrarPapelera(false);
+
+      if (onSaved) {
+        onSaved();
+      }
+
+      window.alert(
+        "El pedido fue enviado a la papelera administrativa."
+      );
+
+      onBack();
+    } catch (err: any) {
+      console.error("Error enviando pedido a papelera:", err);
+
+      window.alert(
+        "No se pudo enviar el pedido a la papelera: " +
+        (err?.message || "error desconocido")
+      );
+    } finally {
+      setEnviandoPapelera(false);
     }
   };
 
@@ -869,6 +923,23 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
               : "Ticket"}
         </button>
 
+        {esAdmin ? (
+          <button
+            type="button"
+            style={{
+              ...styles.cancelBtn,
+              background: "#fff1f0",
+              border: "1px solid rgba(180,35,24,0.28)",
+              color: "#b42318",
+            }}
+            onClick={() => setMostrarPapelera(true)}
+            disabled={saving || enviandoPapelera}
+          >
+            <Trash2 size={18} />
+            Enviar a papelera
+          </button>
+        ) : null}
+
         <button
           style={styles.saveBtn}
           onClick={guardarCambios}
@@ -878,6 +949,22 @@ export default function BusquedaDetalle({ pedidoId, onBack, onSaved }: Props) {
           {saving ? "Guardando..." : "Guardar cambios"}
         </button>
       </div>
+
+      {mostrarPapelera && esAdmin ? (
+        <PapeleraConfirmacion
+          tipoRegistro="PEDIDO"
+          referencia={pedido.id.slice(0, 8)}
+          clienteNombre={pedido.cliente_nombre || "SIN NOMBRE"}
+          totalPagado={Number(pedido.total_pagado || 0)}
+          procesando={enviandoPapelera}
+          onCancelar={() => {
+            if (!enviandoPapelera) {
+              setMostrarPapelera(false);
+            }
+          }}
+          onConfirmar={enviarAPapelera}
+        />
+      ) : null}
 
       {pagoEditando && (
         <div style={styles.modalOverlay}>

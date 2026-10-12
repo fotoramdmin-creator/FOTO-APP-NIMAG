@@ -180,6 +180,7 @@ const ServiciosCalendario = ({
             pagado
           `
         )
+        .eq("en_papelera", false)
         .order("fecha_evento", { ascending: true });
 
       if (errorConsulta) throw errorConsulta;

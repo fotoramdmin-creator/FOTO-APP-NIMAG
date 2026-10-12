@@ -62,6 +62,7 @@ export default function OrdenEnCurso1({
            total_bruto, total_final, total_pagado, descuento,
            detalles_pedido ( n_toma )`
         )
+        .eq("en_papelera", false)
         .or("p_2listo.is.null,p_2listo.eq.false")
         .order("fecha_creacion", { ascending: true });
 
@@ -276,8 +277,8 @@ export default function OrdenEnCurso1({
                               ? "rgba(184,159,84,0.18)"
                               : "#edf8f1",
                             border: `1px solid ${esActivo
-                                ? "rgba(184,159,84,0.55)"
-                                : "rgba(35,122,75,0.28)"
+                              ? "rgba(184,159,84,0.55)"
+                              : "rgba(35,122,75,0.28)"
                               }`,
                             color: esActivo ? THEME.gold : "#237a4b",
                             fontSize: 11,

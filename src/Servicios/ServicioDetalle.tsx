@@ -23,8 +23,12 @@ import {
   User,
   Wallet,
   X,
+  Trash2,
 } from "lucide-react";
 import { supabase } from "../supabaseClient";
+import PapeleraConfirmacion, {
+  type ManejoPagosPapelera,
+} from "../Papelera/PapeleraConfirmacion";
 import { ServicioCreado } from "./serviciosTypes";
 import type {
   PagoGuardado,
@@ -119,6 +123,7 @@ type ServicioDetalleProps = {
   origenPago?: "CONTRATACION" | "ABONO" | null;
   usuarioActualId?: string;
   usuarioActualNombre?: string;
+  esAdmin?: boolean;
   onCerrarComprobante?: () => void;
 };
 
@@ -191,6 +196,7 @@ const ServicioDetalle = ({
   origenPago,
   usuarioActualId,
   usuarioActualNombre,
+  esAdmin = false,
   onCerrarComprobante,
 }: ServicioDetalleProps) => {
   const [servicio, setServicio] = useState<ServicioRow | null>(
@@ -213,6 +219,8 @@ const ServicioDetalle = ({
     mostrarEnviarProduccion,
     setMostrarEnviarProduccion,
   ] = useState(false);
+  const [mostrarPapelera, setMostrarPapelera] = useState(false);
+  const [enviandoPapelera, setEnviandoPapelera] = useState(false);
 
   const [conceptoTomasEditando, setConceptoTomasEditando] =
     useState<ConceptoRow | null>(null);
@@ -273,6 +281,7 @@ const ServicioDetalle = ({
             .from("servicios")
             .select("*")
             .eq("id", servicioId)
+            .eq("en_papelera", false)
             .single(),
 
           supabase
@@ -940,6 +949,44 @@ const ServicioDetalle = ({
       concepto.tomas_seleccionadas.length !==
       concepto.cantidad_tomas_requeridas
   );
+  const enviarServicioAPapelera = async (
+    motivo: string,
+    manejoPagos: ManejoPagosPapelera
+  ) => {
+    if (!servicio || !esAdmin || enviandoPapelera) return;
+
+    try {
+      setEnviandoPapelera(true);
+
+      const { error: rpcError } = await supabase.rpc(
+        "enviar_servicio_papelera",
+        {
+          p_servicio_id: servicio.id,
+          p_motivo: motivo,
+          p_manejo_pagos: manejoPagos,
+        }
+      );
+
+      if (rpcError) throw rpcError;
+
+      setMostrarPapelera(false);
+
+      window.alert(
+        "El servicio fue enviado a la papelera administrativa."
+      );
+
+      onVolver();
+    } catch (err: any) {
+      console.error("Error enviando servicio a papelera:", err);
+
+      window.alert(
+        "No se pudo enviar el servicio a la papelera: " +
+        (err?.message || "error desconocido")
+      );
+    } finally {
+      setEnviandoPapelera(false);
+    }
+  };
 
   const yaEstaEnProduccion = Boolean(
     servicio &&
@@ -1082,6 +1129,23 @@ const ServicioDetalle = ({
                 ? "Preparando…"
                 : "Orden de servicio"}
             </button>
+
+            {esAdmin ? (
+              <button
+                type="button"
+                onClick={() => setMostrarPapelera(true)}
+                style={{
+                  ...styles.refreshButton,
+                  background: THEME.redSoft,
+                  border: "1px solid rgba(180,35,24,0.25)",
+                  color: THEME.red,
+                }}
+                disabled={enviandoPapelera}
+              >
+                <Trash2 size={17} />
+                Enviar a papelera
+              </button>
+            ) : null}
 
             <button
               type="button"
@@ -2392,6 +2456,22 @@ const ServicioDetalle = ({
             </div>
           </motion.section>
         </div>
+      ) : null}
+
+      {mostrarPapelera && esAdmin ? (
+        <PapeleraConfirmacion
+          tipoRegistro="SERVICIO"
+          referencia={servicio.folio}
+          clienteNombre={servicio.cliente_nombre}
+          totalPagado={Number(servicio.total_pagado || 0)}
+          procesando={enviandoPapelera}
+          onCancelar={() => {
+            if (!enviandoPapelera) {
+              setMostrarPapelera(false);
+            }
+          }}
+          onConfirmar={enviarServicioAPapelera}
+        />
       ) : null}
 
       {mostrarEnviarProduccion ? (

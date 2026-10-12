@@ -112,7 +112,8 @@ const ProduccionServiciosLista = ({
               estado,
               created_at
             `
-          )
+                   )
+          .eq("en_papelera", false)
           .in("estado", [
             "EN_PRODUCCION",
             "LISTO_ENTREGA",

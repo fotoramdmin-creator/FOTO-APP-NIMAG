@@ -185,6 +185,7 @@ const ProduccionServicioDetalle = ({
               `
             )
             .eq("id", servicioId)
+            .eq("en_papelera", false)
             .single(),
 
           supabase
@@ -308,7 +309,7 @@ const ProduccionServicioDetalle = ({
 
         setError(
           err?.message ||
-            "No se pudo cargar el seguimiento."
+          "No se pudo cargar el seguimiento."
         );
       } finally {
         setCargando(false);
@@ -336,10 +337,10 @@ const ProduccionServicioDetalle = ({
   const progreso =
     tareas.length > 0
       ? Math.round(
-          (tareasTerminadas /
-            tareas.length) *
-            100
-        )
+        (tareasTerminadas /
+          tareas.length) *
+        100
+      )
       : 0;
 
   const proveedorNombre = (
@@ -396,14 +397,14 @@ const ProduccionServicioDetalle = ({
 
       alert(
         err?.message ||
-          "No se pudo actualizar la tarea."
+        "No se pudo actualizar la tarea."
       );
     } finally {
       setGuardandoTareaId(null);
     }
   };
 
-    const actualizarFormularioExterno = (
+  const actualizarFormularioExterno = (
     tareaId: string,
     cambios: Partial<FormularioTareaExterna>
   ) => {
@@ -522,7 +523,7 @@ const ProduccionServicioDetalle = ({
 
       alert(
         err?.message ||
-          "No se pudo registrar el envío."
+        "No se pudo registrar el envío."
       );
     } finally {
       setGuardandoTareaId(null);
@@ -582,12 +583,12 @@ const ProduccionServicioDetalle = ({
                 ...styles.status,
                 background:
                   servicio.estado ===
-                  "LISTO_ENTREGA"
+                    "LISTO_ENTREGA"
                     ? "#edf8f1"
                     : "#f8f0dc",
                 color:
                   servicio.estado ===
-                  "LISTO_ENTREGA"
+                    "LISTO_ENTREGA"
                     ? "#237a4b"
                     : "#806527",
               }}
@@ -756,7 +757,7 @@ const ProduccionServicioDetalle = ({
                       tarea.estado
                     );
 
-                                    const proveedor =
+                    const proveedor =
                       proveedorNombre(
                         tarea.proveedor_id
                       );
@@ -778,7 +779,7 @@ const ProduccionServicioDetalle = ({
                             background: terminada
                               ? "#237a4b"
                               : tarea.estado ===
-                                  "PENDIENTE"
+                                "PENDIENTE"
                                 ? "#eee9df"
                                 : "#b89f54",
                             color: terminada
@@ -856,14 +857,14 @@ const ProduccionServicioDetalle = ({
                             </small>
                           ) : null}
 
-                                                {tarea.notas ? (
+                          {tarea.notas ? (
                             <small>
                               Nota: {tarea.notas}
                             </small>
                           ) : null}
 
                           {!esTareaExterna &&
-                          !terminada ? (
+                            !terminada ? (
                             <button
                               type="button"
                               onClick={() =>
@@ -886,7 +887,7 @@ const ProduccionServicioDetalle = ({
                                 border: "none",
                                 background:
                                   tarea.estado ===
-                                  "PENDIENTE"
+                                    "PENDIENTE"
                                     ? "#b89f54"
                                     : "#36412e",
                                 color: "#fff",
@@ -898,30 +899,30 @@ const ProduccionServicioDetalle = ({
                                 fontWeight: 900,
                                 cursor:
                                   guardandoTareaId !==
-                                  null
+                                    null
                                     ? "wait"
                                     : "pointer",
                                 opacity:
                                   guardandoTareaId !==
                                     null &&
-                                  guardandoTareaId !==
+                                    guardandoTareaId !==
                                     tarea.id
                                     ? 0.55
                                     : 1,
                               }}
                             >
                               {guardandoTareaId ===
-                              tarea.id
+                                tarea.id
                                 ? "Guardando…"
                                 : tarea.estado ===
-                                    "PENDIENTE"
+                                  "PENDIENTE"
                                   ? "Iniciar tarea"
                                   : "Marcar completada"}
-                                                    </button>
+                            </button>
                           ) : null}
 
                           {esTareaExterna &&
-                          tarea.estado ===
+                            tarea.estado ===
                             "PENDIENTE" ? (
                             <div
                               style={{
@@ -1117,13 +1118,13 @@ const ProduccionServicioDetalle = ({
                                   fontWeight: 900,
                                   cursor:
                                     guardandoTareaId !==
-                                    null
+                                      null
                                       ? "wait"
                                       : "pointer",
                                 }}
                               >
                                 {guardandoTareaId ===
-                                tarea.id
+                                  tarea.id
                                   ? "Guardando envío…"
                                   : "Marcar enviada"}
                               </button>
@@ -1131,7 +1132,7 @@ const ProduccionServicioDetalle = ({
                           ) : null}
 
                           {esTareaExterna &&
-                          tarea.estado ===
+                            tarea.estado ===
                             "ENVIADO_PROVEEDOR" ? (
                             <button
                               type="button"
@@ -1156,20 +1157,20 @@ const ProduccionServicioDetalle = ({
                                 fontWeight: 900,
                                 cursor:
                                   guardandoTareaId !==
-                                  null
+                                    null
                                     ? "wait"
                                     : "pointer",
                               }}
                             >
                               {guardandoTareaId ===
-                              tarea.id
+                                tarea.id
                                 ? "Guardando…"
                                 : "Marcar recibida"}
                             </button>
                           ) : null}
 
                           {esTareaExterna &&
-                          tarea.estado ===
+                            tarea.estado ===
                             "RECIBIDO_PROVEEDOR" ? (
                             <button
                               type="button"
@@ -1194,13 +1195,13 @@ const ProduccionServicioDetalle = ({
                                 fontWeight: 900,
                                 cursor:
                                   guardandoTareaId !==
-                                  null
+                                    null
                                     ? "wait"
                                     : "pointer",
                               }}
                             >
                               {guardandoTareaId ===
-                              tarea.id
+                                tarea.id
                                 ? "Guardando…"
                                 : "Completar revisión"}
                             </button>

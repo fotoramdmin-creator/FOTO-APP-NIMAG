@@ -149,6 +149,7 @@ const ServiciosInicio = ({
             pagado
           `
                 )
+                .eq("en_papelera", false)
                 .order("fecha_evento", { ascending: true });
 
             if (errorConsulta) throw errorConsulta;
@@ -855,7 +856,7 @@ const styles: { [key: string]: React.CSSProperties } = {
         background: THEME.redSoft,
     },
 
-        serviceRowDelivered: {
+    serviceRowDelivered: {
         border: "2px solid rgba(35,122,75,0.42)",
         background:
             "linear-gradient(135deg, #edf8f1 0%, #f8fcf9 100%)",
@@ -884,7 +885,7 @@ const styles: { [key: string]: React.CSSProperties } = {
         color: "#fff",
     },
 
-        dateBlockDelivered: {
+    dateBlockDelivered: {
         background: THEME.green,
         color: "#fff",
     },

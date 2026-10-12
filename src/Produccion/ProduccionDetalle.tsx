@@ -37,7 +37,7 @@ type Pedido = {
   fecha_entrega: string | null;
   horario_entrega: string | null;
   urgente: boolean | null;
-   fecha_inicio_urgente: string | null;
+  fecha_inicio_urgente: string | null;
   p_2listo: boolean | null;
   p3_concluido: boolean | null;
   total_bruto: number | null;
@@ -73,12 +73,13 @@ export default function ProduccionDetalle({ pedidoId, onBack }: Props) {
       const { data: pedidoData, error: pedidoError } = await supabase
         .from("pedidos")
         .select(
-                 "id,cliente_nombre,cliente_telefono,fecha_entrega,horario_entrega,urgente,fecha_inicio_urgente,p_2listo,p3_concluido,total_bruto,total_final,total_pagado,descuento"
+          "id,cliente_nombre,cliente_telefono,fecha_entrega,horario_entrega,urgente,fecha_inicio_urgente,p_2listo,p3_concluido,total_bruto,total_final,total_pagado,descuento"
         )
         .eq("id", pedidoId)
+        .eq("en_papelera", false)
         .single();
 
-          if (pedidoError) throw pedidoError;
+      if (pedidoError) throw pedidoError;
 
       const tienePago =
         Number(
@@ -95,9 +96,9 @@ export default function ProduccionDetalle({ pedidoId, onBack }: Props) {
         Number(
           pedidoData.descuento || 0
         ) >=
-          Number(
-            pedidoData.total_bruto || 0
-          );
+        Number(
+          pedidoData.total_bruto || 0
+        );
 
       if (
         pedidoData.p_2listo !== true ||
@@ -121,14 +122,14 @@ export default function ProduccionDetalle({ pedidoId, onBack }: Props) {
       setPedido(pedidoData);
       setDetalles(detallesData || []);
     } catch (err: any) {
-          console.error(
+      console.error(
         "Error cargando detalle de producción:",
         err.message
       );
 
       alert(
         err?.message ||
-          "No se pudo cargar el detalle del pedido"
+        "No se pudo cargar el detalle del pedido"
       );
     } finally {
       setLoading(false);
@@ -285,7 +286,8 @@ export default function ProduccionDetalle({ pedidoId, onBack }: Props) {
           p3_concluido: true,
           updated_at: new Date().toISOString(),
         })
-        .eq("id", pedidoId);
+        .eq("id", pedidoId)
+        .eq("en_papelera", false);
 
       if (error) throw error;
 
@@ -456,10 +458,10 @@ export default function ProduccionDetalle({ pedidoId, onBack }: Props) {
             estado.hechos === 0
               ? styles.detalleCardState0
               : estado.hechos === 1
-              ? styles.detalleCardState1
-              : estado.hechos === 2
-              ? styles.detalleCardState2
-              : styles.detalleCardState3;
+                ? styles.detalleCardState1
+                : estado.hechos === 2
+                  ? styles.detalleCardState2
+                  : styles.detalleCardState3;
 
           return (
             <motion.div
@@ -587,10 +589,10 @@ export default function ProduccionDetalle({ pedidoId, onBack }: Props) {
                   ...(estado.hechos === 0
                     ? styles.estadoChip0
                     : estado.hechos === 1
-                    ? styles.estadoChip1
-                    : estado.hechos === 2
-                    ? styles.estadoChip2
-                    : styles.estadoChip3),
+                      ? styles.estadoChip1
+                      : estado.hechos === 2
+                        ? styles.estadoChip2
+                        : styles.estadoChip3),
                 }}
               >
                 {estado.estadoTexto}
@@ -611,8 +613,8 @@ export default function ProduccionDetalle({ pedidoId, onBack }: Props) {
                 {guardandoId === detalle.id
                   ? "Guardando..."
                   : estado.renglonCompleto
-                  ? "Guardar renglón"
-                  : "Guardar avance"}
+                    ? "Guardar renglón"
+                    : "Guardar avance"}
               </button>
             </motion.div>
           );

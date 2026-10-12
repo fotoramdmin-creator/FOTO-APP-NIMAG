@@ -77,11 +77,13 @@ const Navbar = ({
           .select(
             "id, total_bruto, total_final, total_pagado, descuento"
           )
+          .eq("en_papelera", false)
           .or("p_2listo.is.null,p_2listo.eq.false"),
 
         supabase
           .from("pedidos")
           .select("id, urgente, fecha_entrega")
+          .eq("en_papelera", false)
           .eq("p_2listo", true)
           .or("p3_concluido.is.null,p3_concluido.eq.false"),
       ]);

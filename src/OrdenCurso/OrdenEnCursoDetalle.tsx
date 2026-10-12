@@ -101,8 +101,8 @@ export default function OrdenEnCursoDetalle({
            detalles_pedido ( id, tamano, cantidad, tipo, papel, especificaciones, n_toma )`
         )
         .eq("id", pedidoId)
+        .eq("en_papelera", false)
         .single();
-
       if (error) throw error;
 
       setPedido(data);
@@ -205,7 +205,7 @@ export default function OrdenEnCursoDetalle({
           (detalle) =>
             String(
               tomasPorRenglon[
-                detalle.id
+              detalle.id
               ] || ""
             ).trim() !== ""
         );
@@ -215,7 +215,7 @@ export default function OrdenEnCursoDetalle({
           (detalle) =>
             `${detalle.id}:${String(
               tomasPorRenglon[
-                detalle.id
+              detalle.id
               ] || ""
             ).trim()}`
         )
@@ -224,7 +224,7 @@ export default function OrdenEnCursoDetalle({
       const debeOfrecerWhatsApp =
         todasCompletas &&
         firmaActual !==
-          firmaTomasAvisada;
+        firmaTomasAvisada;
 
       if (debeOfrecerWhatsApp) {
         await revisarTomasCompletas();
@@ -241,7 +241,7 @@ export default function OrdenEnCursoDetalle({
 
       alert(
         "Error al guardar: " +
-          (err?.message || "desconocido")
+        (err?.message || "desconocido")
       );
     } finally {
       setIsSaving(false);
@@ -258,6 +258,7 @@ export default function OrdenEnCursoDetalle({
         .from("pedidos")
         .update({ p_2listo: true })
         .eq("id", pedidoId)
+        .eq("en_papelera", false)
         .select("id, p_2listo");
 
       if (error) {

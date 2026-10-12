@@ -25,7 +25,7 @@ export default function EditarPedido({ perfil }: Props) {
   const [busqueda, setBusqueda] = useState("");
   const [pedidos, setPedidos] = useState<any[]>([]);
   const [pedidoSeleccionado, setPedidoSeleccionado] = useState<any>(null);
-    const [ticketPreparado, setTicketPreparado] = useState(false);
+  const [ticketPreparado, setTicketPreparado] = useState(false);
   const [compartiendoTicket, setCompartiendoTicket] = useState(false);
 
   const [nombre, setNombre] = useState("");
@@ -65,6 +65,7 @@ export default function EditarPedido({ perfil }: Props) {
         )
       `
       )
+      .eq("en_papelera", false)
       .order("fecha_creacion", { ascending: false })
       .limit(50);
 
@@ -74,7 +75,7 @@ export default function EditarPedido({ perfil }: Props) {
   useEffect(() => {
     cargarPedidos();
   }, []);
-    useEffect(() => {
+  useEffect(() => {
     let componenteActivo = true;
 
     prepararTicketPdf().then(
@@ -140,7 +141,8 @@ export default function EditarPedido({ perfil }: Props) {
           editado: true,
           ultima_edicion: new Date().toISOString(),
         })
-        .eq("id", pedidoSeleccionado.id);
+        .eq("id", pedidoSeleccionado.id)
+        .eq("en_papelera", false);
 
       if (pedidoSeleccionado.detalles_pedido?.[0]?.id) {
         await supabase
@@ -213,7 +215,7 @@ export default function EditarPedido({ perfil }: Props) {
       console.error("Error compartiendo ticket:", error);
       alert(
         "No se pudo compartir el ticket: " +
-          (error?.message || "error desconocido")
+        (error?.message || "error desconocido")
       );
     } finally {
       setCompartiendoTicket(false);
@@ -319,7 +321,7 @@ export default function EditarPedido({ perfil }: Props) {
                 Reenviar WhatsApp
               </button>
 
-                           <button
+              <button
                 onClick={compartirTicket}
                 style={{
                   ...styles.ticketBtn,
@@ -336,8 +338,8 @@ export default function EditarPedido({ perfil }: Props) {
                 {!ticketPreparado
                   ? "Preparando ticket..."
                   : compartiendoTicket
-                  ? "Abriendo..."
-                  : "Compartir Ticket"}
+                    ? "Abriendo..."
+                    : "Compartir Ticket"}
               </button>
             </div>
           </motion.div>
