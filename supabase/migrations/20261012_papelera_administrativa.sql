@@ -1206,7 +1206,7 @@ select
     pago.fecha_pago
     at time zone 'America/Mexico_City'
   )::date as dia_mx,
-  pago.monto,
+  pago.monto::numeric(10, 2) as monto,
   'ENTRADA'::text as direccion,
   coalesce(pago.tipo, 'PAGO') as tipo_mov,
   case
@@ -1258,7 +1258,7 @@ select
   devolucion.usuario_nombre,
   devolucion.fecha_devolucion as fecha,
   devolucion.dia_mx,
-  devolucion.monto,
+  devolucion.monto::numeric(10, 2) as monto,
   'SALIDA'::text as direccion,
   'DEVOLUCION'::text as tipo_mov,
   btrim(
@@ -1295,7 +1295,7 @@ select
   usuario_retiro.nombre as usuario_nombre,
   retiro.fecha,
   retiro.dia_mx,
-  retiro.monto,
+  retiro.monto::numeric(10, 2) as monto,
   'SALIDA'::text as direccion,
   'RETIRO'::text as tipo_mov,
   btrim(
