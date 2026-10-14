@@ -1490,7 +1490,9 @@ commit;
 
 begin;
 
-create or replace function public.listar_papelera_administrativa()
+drop function if exists public.listar_papelera_administrativa();
+
+create function public.listar_papelera_administrativa()
 returns table (
   tipo_registro text,
   registro_id uuid,
@@ -1506,7 +1508,10 @@ returns table (
   total_pagado numeric,
   pagos_activos bigint,
   pagos_anulados bigint,
-  pagos_devueltos bigint
+  pagos_devueltos bigint,
+  monto_activo numeric,
+  monto_anulado numeric,
+  monto_devuelto numeric
 )
 language plpgsql
 stable
@@ -1542,7 +1547,11 @@ begin
       pedido.papelera_motivo,
       pedido.papelera_manejo_pagos,
       pedido.total_final,
-      pedido.total_pagado,
+      (
+        select coalesce(sum(pago.monto), 0)
+        from public.pagos as pago
+        where pago.pedido_id = pedido.id
+      ) as total_pagado,
       (
         select count(*)
         from public.pagos as pago
@@ -1555,12 +1564,30 @@ begin
         where pago.pedido_id = pedido.id
           and pago.estado_pago = 'ANULADO'
       ) as pagos_anulados,
-      (
+         (
         select count(*)
         from public.pagos as pago
         where pago.pedido_id = pedido.id
           and pago.estado_pago = 'DEVUELTO'
-      ) as pagos_devueltos
+      ) as pagos_devueltos,
+      (
+        select coalesce(sum(pago.monto), 0)
+        from public.pagos as pago
+        where pago.pedido_id = pedido.id
+          and pago.estado_pago = 'ACTIVO'
+      ) as monto_activo,
+      (
+        select coalesce(sum(pago.monto), 0)
+        from public.pagos as pago
+        where pago.pedido_id = pedido.id
+          and pago.estado_pago = 'ANULADO'
+      ) as monto_anulado,
+      (
+        select coalesce(sum(pago.monto), 0)
+        from public.pagos as pago
+        where pago.pedido_id = pedido.id
+          and pago.estado_pago = 'DEVUELTO'
+      ) as monto_devuelto
     from public.pedidos as pedido
     where pedido.en_papelera is true
 
@@ -1578,7 +1605,11 @@ begin
       servicio.papelera_motivo,
       servicio.papelera_manejo_pagos,
       servicio.total_final,
-      servicio.total_pagado,
+      (
+        select coalesce(sum(pago.monto), 0)
+        from public.pagos as pago
+        where pago.servicio_id = servicio.id
+      ) as total_pagado,
       (
         select count(*)
         from public.pagos as pago
@@ -1591,12 +1622,30 @@ begin
         where pago.servicio_id = servicio.id
           and pago.estado_pago = 'ANULADO'
       ) as pagos_anulados,
-      (
+         (
         select count(*)
         from public.pagos as pago
         where pago.servicio_id = servicio.id
           and pago.estado_pago = 'DEVUELTO'
-      ) as pagos_devueltos
+      ) as pagos_devueltos,
+      (
+        select coalesce(sum(pago.monto), 0)
+        from public.pagos as pago
+        where pago.servicio_id = servicio.id
+          and pago.estado_pago = 'ACTIVO'
+      ) as monto_activo,
+      (
+        select coalesce(sum(pago.monto), 0)
+        from public.pagos as pago
+        where pago.servicio_id = servicio.id
+          and pago.estado_pago = 'ANULADO'
+      ) as monto_anulado,
+      (
+        select coalesce(sum(pago.monto), 0)
+        from public.pagos as pago
+        where pago.servicio_id = servicio.id
+          and pago.estado_pago = 'DEVUELTO'
+      ) as monto_devuelto
     from public.servicios as servicio
     where servicio.en_papelera is true
   ) as registros
@@ -1714,5 +1763,43 @@ create trigger proteger_pago_de_registro_en_papelera
 before insert or update on public.pagos
 for each row
 execute function public.proteger_pago_registro_en_papelera();
+
+commit;
+
+-- Parte 12: unificar el recálculo de pedidos con pagos activos.
+
+begin;
+
+create or replace function public.recalcular_pedido(
+  p_pedido_id uuid
+)
+returns void
+language plpgsql
+as $function$
+begin
+  perform public.recalcular_pedido_totales(p_pedido_id);
+end;
+$function$;
+
+create or replace function public.recalcular_pagos_pedido()
+returns trigger
+language plpgsql
+as $function$
+begin
+  if tg_op = 'DELETE' then
+    perform public.recalcular_pedido_totales(old.pedido_id);
+    return old;
+  end if;
+
+  if tg_op = 'UPDATE' then
+    if old.pedido_id is distinct from new.pedido_id then
+      perform public.recalcular_pedido_totales(old.pedido_id);
+    end if;
+  end if;
+
+  perform public.recalcular_pedido_totales(new.pedido_id);
+  return new;
+end;
+$function$;
 
 commit;

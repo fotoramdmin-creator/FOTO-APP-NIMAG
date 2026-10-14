@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { supabase } from "../supabaseClient";
+import Vista4Pago from "../TomaPedidos/Vista4Pago";
 import PapeleraConfirmacion, {
   type ManejoPagosPapelera,
 } from "../Papelera/PapeleraConfirmacion";
@@ -46,6 +47,7 @@ type Pago = {
   tipo: "A_CUENTA" | "LIQUIDACION" | string | null;
   metodo_pago?: "EFECTIVO" | "TRANSFERENCIA" | "TARJETA" | string | null;
   cuenta_destino?: string | null;
+  estado_pago?: "ACTIVO" | "ANULADO" | "DEVUELTO" | string | null;
 };
 
 type CuentaTransferencia = {
@@ -67,6 +69,7 @@ type Pedido = {
   entregado?: boolean | null;
   p_2listo?: boolean | null;
   total_bruto: number | null;
+  descuento: number | null;
   total_final: number | null;
   anticipo: number | null;
   liquidacion: number | null;
@@ -78,6 +81,7 @@ type Pedido = {
 
 type Props = {
   pedidoId: string;
+  usuarioId?: string;
   esAdmin?: boolean;
   onBack: () => void;
   onSaved?: () => void;
@@ -104,7 +108,8 @@ const DOMINIOS_CORREO = [
 
 export default function BusquedaDetalle({
   pedidoId,
-  esAdmin = false,
+  usuarioId,
+  esAdmin,
   onBack,
   onSaved,
 }: Props) {
@@ -130,6 +135,8 @@ export default function BusquedaDetalle({
   const [saving, setSaving] = useState(false);
   const [ticketPreparado, setTicketPreparado] = useState(false);
   const [compartiendoTicket, setCompartiendoTicket] = useState(false);
+  const [registrandoNuevoPago, setRegistrandoNuevoPago] =
+    useState(false);
   const [mostrarPapelera, setMostrarPapelera] = useState(false);
   const [enviandoPapelera, setEnviandoPapelera] = useState(false);
   const numero = (valor: any) => {
@@ -171,7 +178,8 @@ export default function BusquedaDetalle({
           pagado,
           entregado,
           p_2listo,
-          total_bruto,
+                   total_bruto,
+          descuento,
           total_final,
           anticipo,
           liquidacion,
@@ -200,7 +208,9 @@ export default function BusquedaDetalle({
 
       const { data: pagosData, error: pagosError } = await supabase
         .from("pagos")
-        .select("id,pedido_id,fecha_pago,monto,tipo,metodo_pago,cuenta_destino")
+        .select(
+          "id,pedido_id,fecha_pago,monto,tipo,metodo_pago,cuenta_destino,estado_pago"
+        )
         .eq("pedido_id", pedidoId)
         .order("fecha_pago", { ascending: true });
 
@@ -265,7 +275,10 @@ export default function BusquedaDetalle({
 
   const restaCalculada = useMemo(() => {
     if (!pedido) return 0;
-    return numero(pedido.total_final) - totalPagadoCalculado;
+    return Math.max(
+      0,
+      numero(pedido.total_final) - totalPagadoCalculado
+    );
   }, [pedido?.total_final, totalPagadoCalculado]);
 
   const pedidoParaTicket = () => {
@@ -324,6 +337,17 @@ export default function BusquedaDetalle({
   };
 
   const abrirEditarPago = (pago: Pago) => {
+    const estadoPago = pago.estado_pago || "ACTIVO";
+
+    if (estadoPago !== "ACTIVO") {
+      alert(
+        estadoPago === "DEVUELTO"
+          ? "Este pago fue devuelto y ya no puede editarse."
+          : "Este pago fue anulado y ya no puede editarse."
+      );
+      return;
+    }
+
     const metodoSeguro =
       pago.metodo_pago === "TRANSFERENCIA" || pago.metodo_pago === "TARJETA"
         ? pago.metodo_pago
@@ -534,7 +558,30 @@ export default function BusquedaDetalle({
       </div>
     );
   }
+  if (registrandoNuevoPago) {
+    return (
+      <Vista4Pago
+        pedidoId={pedido.id}
+        clienteNombre={pedido.cliente_nombre || "SIN NOMBRE"}
+        usuarioId={usuarioId}
+        totalBruto={numero(pedido.total_bruto)}
+        descuento={numero(pedido.descuento)}
+        totalFinal={numero(pedido.total_final)}
+        pendiente={restaCalculada}
+        onVolver={() => setRegistrandoNuevoPago(false)}
+        onFinalizado={async () => {
+          setRegistrandoNuevoPago(false);
+          await cargarPedido();
 
+          if (onSaved) {
+            onSaved();
+          }
+
+          alert("Nuevo pago registrado correctamente");
+        }}
+      />
+    );
+  }
   return (
     <div style={styles.container}>
       <button style={styles.backBtn} onClick={onBack}>
@@ -772,30 +819,91 @@ export default function BusquedaDetalle({
           </p>
         ) : (
           <div style={styles.detallesList}>
-            {pagos.map((pago) => (
-              <div key={pago.id} style={styles.detalleCard}>
-                <div style={styles.detalleHeader}>
-                  <span style={styles.detalleTitle}>
-                    {pago.tipo === "A_CUENTA" ? "A CUENTA" : "LIQUIDACIÓN"}
-                  </span>
+            {pagos.map((pago) => {
+              const estadoPago = pago.estado_pago || "ACTIVO";
+              const pagoActivo = estadoPago === "ACTIVO";
 
-                  <strong>${numero(pago.monto)}</strong>
-                </div>
-
-                <p style={styles.pagoMeta}>
-                  {pago.metodo_pago || "SIN MÉTODO"}
-                  {pago.cuenta_destino ? ` · ${pago.cuenta_destino}` : ""}
-                </p>
-
-                <button
-                  type="button"
-                  style={styles.editPagoBtn}
-                  onClick={() => abrirEditarPago(pago)}
+              return (
+                <div
+                  key={pago.id}
+                  style={{
+                    ...styles.detalleCard,
+                    opacity: pagoActivo ? 1 : 0.72,
+                  }}
                 >
-                  Editar pago
-                </button>
-              </div>
-            ))}
+                  <div style={styles.detalleHeader}>
+                    <span style={styles.detalleTitle}>
+                      {pago.tipo === "A_CUENTA"
+                        ? "A CUENTA"
+                        : "LIQUIDACIÓN"}
+                    </span>
+
+                    <strong>${numero(pago.monto)}</strong>
+                  </div>
+
+                  <p style={styles.pagoMeta}>
+                    {pago.metodo_pago || "SIN MÉTODO"}
+                    {pago.cuenta_destino
+                      ? ` · ${pago.cuenta_destino}`
+                      : ""}
+                  </p>
+
+                  <div
+                    style={{
+                      ...styles.paymentStatus,
+                      background:
+                        estadoPago === "DEVUELTO"
+                          ? "#fff1f0"
+                          : estadoPago === "ANULADO"
+                            ? "#f3f4f6"
+                            : "#edf8f1",
+                      color:
+                        estadoPago === "DEVUELTO"
+                          ? THEME.urgent
+                          : estadoPago === "ANULADO"
+                            ? "#616161"
+                            : THEME.olive,
+                    }}
+                  >
+                    {estadoPago === "DEVUELTO"
+                      ? "PAGO DEVUELTO"
+                      : estadoPago === "ANULADO"
+                        ? "PAGO ANULADO"
+                        : "PAGO ACTIVO"}
+                  </div>
+
+                  {pagoActivo ? (
+                    <button
+                      type="button"
+                      style={styles.editPagoBtn}
+                      onClick={() => abrirEditarPago(pago)}
+                    >
+                      Editar pago
+                    </button>
+                  ) : (
+                    <p style={styles.paymentLockedText}>
+                      Este movimiento se conserva como historial y ya
+                      no puede editarse.
+                    </p>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
+
+        {restaCalculada > 0 ? (
+          <button
+            type="button"
+            style={styles.newPaymentBtn}
+            onClick={() => setRegistrandoNuevoPago(true)}
+          >
+            <Wallet size={18} />
+            Registrar nuevo pago
+          </button>
+        ) : (
+          <div style={styles.paidNotice}>
+            Este pedido no tiene saldo pendiente.
           </div>
         )}
       </section>
@@ -1446,6 +1554,8 @@ const styles: { [key: string]: React.CSSProperties } = {
     fontWeight: 800,
   },
   editPagoBtn: {
+    display: "block",
+    width: "fit-content",
     marginTop: 10,
     border: "none",
     borderRadius: 12,
@@ -1454,6 +1564,49 @@ const styles: { [key: string]: React.CSSProperties } = {
     color: THEME.white,
     fontWeight: 900,
     cursor: "pointer",
+  },
+  paymentStatus: {
+    display: "inline-flex",
+    alignItems: "center",
+    width: "fit-content",
+    marginTop: 10,
+    padding: "7px 10px",
+    borderRadius: 999,
+    fontSize: 11,
+    fontWeight: 900,
+    letterSpacing: "0.04em",
+  },
+  paymentLockedText: {
+    margin: "10px 0 0",
+    color: THEME.soft,
+    fontSize: 12,
+    lineHeight: 1.45,
+  },
+  newPaymentBtn: {
+    width: "100%",
+    minHeight: 48,
+    marginTop: 16,
+    border: "none",
+    borderRadius: 14,
+    padding: "12px 16px",
+    background: THEME.olive,
+    color: THEME.white,
+    fontWeight: 900,
+    cursor: "pointer",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+  },
+  paidNotice: {
+    marginTop: 16,
+    padding: "12px 14px",
+    borderRadius: 13,
+    background: "#edf8f1",
+    color: THEME.olive,
+    fontSize: 13,
+    fontWeight: 900,
+    textAlign: "center",
   },
   modalOverlay: {
     position: "fixed",

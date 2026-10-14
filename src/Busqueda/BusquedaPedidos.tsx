@@ -36,6 +36,7 @@ type Pedido = {
 
 type Props = {
   perfil?: {
+    id?: string | null;
     admin?: boolean | null;
   } | null;
 };
@@ -162,6 +163,7 @@ export default function BusquedaPedidos({ perfil }: Props) {
     return (
       <BusquedaDetalle
         pedidoId={pedidoDetalleId}
+        usuarioId={perfil?.id || undefined}
         esAdmin={perfil?.admin === true}
         onBack={() => setPedidoDetalleId(null)}
         onSaved={() => cargarPedidos(true)}

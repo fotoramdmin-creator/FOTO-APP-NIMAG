@@ -24,16 +24,19 @@ type RegistroPapelera = {
   papelera_por_nombre: string | null;
   papelera_motivo: string | null;
   papelera_manejo_pagos:
-    | "SIN_PAGOS"
-    | "CONSERVAR"
-    | "ANULAR"
-    | "DEVOLVER"
-    | null;
+  | "SIN_PAGOS"
+  | "CONSERVAR"
+  | "ANULAR"
+  | "DEVOLVER"
+  | null;
   total_final: number | null;
   total_pagado: number | null;
   pagos_activos: number | null;
   pagos_anulados: number | null;
   pagos_devueltos: number | null;
+  monto_activo: number | null;
+  monto_anulado: number | null;
+  monto_devuelto: number | null;
 };
 
 type Props = {
@@ -115,7 +118,7 @@ export default function PapeleraAdministrativa({ onBack }: Props) {
       console.error("Error cargando papelera:", err);
       setError(
         err?.message ||
-          "No se pudo cargar la papelera administrativa."
+        "No se pudo cargar la papelera administrativa."
       );
     } finally {
       setLoading(false);
@@ -194,10 +197,9 @@ export default function PapeleraAdministrativa({ onBack }: Props) {
       setMotivoRestauracion("");
 
       window.alert(
-        `${
-          restaurando.tipo_registro === "PEDIDO"
-            ? "Pedido"
-            : "Servicio"
+        `${restaurando.tipo_registro === "PEDIDO"
+          ? "Pedido"
+          : "Servicio"
         } restaurado correctamente.`
       );
     } catch (err: any) {
@@ -389,7 +391,7 @@ export default function PapeleraAdministrativa({ onBack }: Props) {
                   />
 
                   <Info
-                    label="Pagado registrado"
+                    label="Pago recibido original"
                     value={money(registro.total_pagado)}
                   />
                 </div>
@@ -402,14 +404,64 @@ export default function PapeleraAdministrativa({ onBack }: Props) {
                 </div>
 
                 <div style={styles.paymentState}>
-                  <strong>
+                  <strong style={styles.paymentTitle}>
                     {etiquetaManejo(
                       registro.papelera_manejo_pagos
                     )}
                   </strong>
 
-                  <span>
-                    Activos: {Number(registro.pagos_activos || 0)} ·
+                  {registro.papelera_manejo_pagos === "DEVOLVER" ? (
+                    <>
+                      <div style={styles.paymentRow}>
+                        <span>Monto devuelto al cliente</span>
+                        <strong>
+                          {money(registro.monto_devuelto)}
+                        </strong>
+                      </div>
+
+                      <div style={styles.paymentImpact}>
+                        Impacto en caja: salida de{" "}
+                        <strong>
+                          {money(registro.monto_devuelto)}
+                        </strong>
+                      </div>
+                    </>
+                  ) : registro.papelera_manejo_pagos === "ANULAR" ? (
+                    <>
+                      <div style={styles.paymentRow}>
+                        <span>Monto anulado</span>
+                        <strong>
+                          {money(registro.monto_anulado)}
+                        </strong>
+                      </div>
+
+                      <div style={styles.paymentImpact}>
+                        Impacto contable: este pago dejó de contar como
+                        ingreso. No se registró una devolución.
+                      </div>
+                    </>
+                  ) : registro.papelera_manejo_pagos === "CONSERVAR" ? (
+                    <>
+                      <div style={styles.paymentRow}>
+                        <span>Monto conservado</span>
+                        <strong>
+                          {money(registro.monto_activo)}
+                        </strong>
+                      </div>
+
+                      <div style={styles.paymentImpact}>
+                        Impacto contable: el dinero permanece registrado
+                        como ingreso.
+                      </div>
+                    </>
+                  ) : (
+                    <div style={styles.paymentImpact}>
+                      Este registro no tenía pagos activos.
+                    </div>
+                  )}
+
+                  <span style={styles.paymentCounts}>
+                    Pagos activos: {Number(registro.pagos_activos || 0)} ·
                     Anulados: {Number(registro.pagos_anulados || 0)} ·
                     Devueltos: {Number(registro.pagos_devueltos || 0)}
                   </span>
@@ -511,7 +563,7 @@ export default function PapeleraAdministrativa({ onBack }: Props) {
                   ...styles.confirmBtn,
                   opacity:
                     guardando ||
-                    motivoRestauracion.trim().length < 5
+                      motivoRestauracion.trim().length < 5
                       ? 0.55
                       : 1,
                 }}
@@ -832,13 +884,43 @@ const styles: Record<string, React.CSSProperties> = {
   paymentState: {
     display: "flex",
     flexDirection: "column",
-    gap: 5,
+    gap: 10,
     marginTop: 14,
-    padding: 13,
+    padding: 14,
     borderRadius: 14,
     background: "#f6f3ea",
     color: THEME.oliveDark,
     fontSize: 12,
+    border: `1px solid ${THEME.border}`,
+  },
+  paymentTitle: {
+    fontSize: 13,
+    fontWeight: 900,
+    textTransform: "uppercase",
+    letterSpacing: "0.04em",
+  },
+  paymentRow: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 12,
+    padding: "10px 12px",
+    borderRadius: 11,
+    background: THEME.card,
+    fontSize: 13,
+  },
+  paymentImpact: {
+    padding: "10px 12px",
+    borderRadius: 11,
+    background: "#fff8e8",
+    color: "#765d25",
+    fontSize: 12,
+    lineHeight: 1.45,
+  },
+  paymentCounts: {
+    color: THEME.soft,
+    fontSize: 11,
+    lineHeight: 1.45,
   },
   restoreBtn: {
     width: "100%",
