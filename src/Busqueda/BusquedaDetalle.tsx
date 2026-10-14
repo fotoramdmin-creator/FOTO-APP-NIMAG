@@ -281,6 +281,14 @@ export default function BusquedaDetalle({
     );
   }, [pedido?.total_final, totalPagadoCalculado]);
 
+  const saldoAFavorCalculado = useMemo(() => {
+    if (!pedido) return 0;
+    return Math.max(
+      0,
+      totalPagadoCalculado - numero(pedido.total_final)
+    );
+  }, [pedido?.total_final, totalPagadoCalculado]);
+
   const pedidoParaTicket = () => {
     if (!pedido) return null;
 
@@ -794,17 +802,45 @@ export default function BusquedaDetalle({
           </div>
 
           <div>
-            <span style={styles.calcLabel}>Resta</span>
+            <span style={styles.calcLabel}>
+              {saldoAFavorCalculado > 0
+                ? "Saldo a favor del cliente"
+                : "Pendiente por cobrar"}
+            </span>
             <strong
               style={{
                 ...styles.calcValue,
                 color: restaCalculada > 0 ? THEME.urgent : THEME.olive,
               }}
             >
-              ${restaCalculada}
+              ${(saldoAFavorCalculado > 0
+                ? saldoAFavorCalculado
+                : restaCalculada
+              ).toFixed(2)}
             </strong>
           </div>
-        </div>
+            </div>
+
+        {saldoAFavorCalculado > 0 && (
+          <div
+            role="status"
+            style={{
+              marginTop: 12,
+              padding: "14px 16px",
+              borderRadius: 14,
+              background: "#fff8e8",
+              border: "1px solid #b89f54",
+              color: "#765d25",
+              fontSize: 13,
+              fontWeight: 800,
+              lineHeight: 1.5,
+            }}
+          >
+            El pago supera el total del pedido por $
+            {saldoAFavorCalculado.toFixed(2)}. Revisa si corresponde
+            devolver dinero o corregir la captura.
+          </div>
+        )}
       </section>
 
       <section style={styles.section}>
